@@ -3,6 +3,5 @@
 pub mod prelude;
 
 pub mod blog;
-pub mod image;
 pub mod message;
 pub mod user;

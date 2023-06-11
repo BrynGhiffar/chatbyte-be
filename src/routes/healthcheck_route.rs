@@ -1,6 +1,5 @@
-use actix_web::{ Responder, get };
+use actix_web::Responder;
 
-#[get("")]
-async fn healthcheck() -> impl Responder {
+pub async fn healthcheck() -> impl Responder {
     "API is healthy"
 }
