@@ -1,15 +1,29 @@
 use std::collections::HashMap;
 use actix::prelude::*;
 use actix_broker::BrokerSubscribe;
+use sea_orm::{Database, DatabaseConnection};
 
 use crate::message::message::{ChatMessage, LeaveRoom, JoinRoom, ListRooms, SendMessage};
+
+use super::message::ConnectDatabase;
 
 type Client = Recipient<ChatMessage>;
 type Room = HashMap<usize, Client>;
 
-#[derive(Default)]
+// #[derive(Default)]
 pub struct WsChatServer {
-    rooms: HashMap<String, Room>
+    rooms: HashMap<String, Room>,
+    db: Option<DatabaseConnection>
+}
+
+impl Default for WsChatServer {
+
+    fn default() -> Self {
+        return WsChatServer { 
+            rooms: HashMap::new(), 
+            db: None
+        };
+    }
 }
 
 impl WsChatServer {
@@ -60,6 +74,26 @@ impl Actor for WsChatServer {
     fn started(&mut self, ctx: &mut Self::Context) {
         self.subscribe_system_async::<LeaveRoom>(ctx);
         self.subscribe_system_async::<SendMessage>(ctx);
+
+        let addr = ctx.address();
+        let fut = async move {
+            let db_url = std::env::var("DATABASE_URL").expect("DATABSE_URL is missing");
+            let db = Database::connect(db_url).await.unwrap();
+            addr.send(ConnectDatabase(db)).await.unwrap();
+        };
+        let fut = actix::fut::wrap_future::<_, Self>(fut);
+        ctx.spawn(fut);
+    }
+}
+
+impl Handler<ConnectDatabase> for WsChatServer {
+    type Result = ();
+
+    fn handle(&mut self, msg: ConnectDatabase, _ctx: &mut Self::Context) -> Self::Result {
+        let ConnectDatabase(conn) = msg;
+        if self.db.is_none() {
+            self.db = Some(conn);
+        }
     }
 }
 

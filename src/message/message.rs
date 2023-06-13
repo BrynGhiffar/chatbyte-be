@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use sea_orm::DatabaseConnection;
 
 #[derive(Clone, Message)]
 #[rtype(result = "()")]
@@ -21,3 +22,6 @@ pub struct ListRooms;
 #[rtype(result = "()")]
 pub struct SendMessage(pub String, pub usize, pub String);
 
+#[derive(Clone, Message)]
+#[rtype(result = "()")]
+pub struct ConnectDatabase(pub DatabaseConnection);

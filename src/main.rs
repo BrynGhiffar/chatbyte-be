@@ -13,6 +13,4 @@ mod message;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     run::run().await
-    // test_run_db().await.unwrap();
-    // Ok(())
 }

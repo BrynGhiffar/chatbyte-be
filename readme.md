@@ -1,5 +1,10 @@
 # Vite Chat App Backend
 
+## Next Steps
+- [ ] Remove room functionality, implement websockets like in ts proj
+
+## Building
+
 To build: `cargo build`
 
 To run:
