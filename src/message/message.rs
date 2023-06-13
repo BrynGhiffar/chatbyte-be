@@ -1,26 +1,31 @@
 use actix::prelude::*;
 use sea_orm::DatabaseConnection;
 
+use super::session::WsChatSession;
+
 #[derive(Clone, Message)]
 #[rtype(result = "()")]
 pub struct ChatMessage(pub String);
 
 #[derive(Clone, Message)]
-#[rtype(result = "usize")]
-pub struct JoinRoom(pub String, pub Option<String>, pub Recipient<ChatMessage>);
-
+#[rtype(result = "()")]
+pub struct UserConnects {
+    pub user_id: i32,
+    pub addr: Addr<WsChatSession>
+}
 
 #[derive(Clone, Message)]
 #[rtype(result = "()")]
-pub struct LeaveRoom(pub String, pub usize);
-
-#[derive(Clone, Message)]
-#[rtype(result = "Vec<String>")]
-pub struct ListRooms;
+pub struct UserDisconnects {
+    pub user_id: i32
+}
 
 #[derive(Clone, Message)]
 #[rtype(result = "()")]
-pub struct SendMessage(pub String, pub usize, pub String);
+pub struct SendMessage {
+    pub token: String,
+    pub content: String,
+}
 
 #[derive(Clone, Message)]
 #[rtype(result = "()")]

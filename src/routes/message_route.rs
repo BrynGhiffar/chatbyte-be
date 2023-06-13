@@ -66,8 +66,18 @@ pub async fn get_messages(
     return HttpResponse::BadGateway().json(messages);
 }
 
-async fn chat_websocket(req: HttpRequest, stream: web::Payload) -> Result<impl Responder, Error> {
-    ws::start(WsChatSession::default(), &req, stream)
+#[derive(Deserialize)]
+struct ChatWebsocketQuery {
+    token: String
+}
+async fn chat_websocket(
+    req: HttpRequest, 
+    stream: web::Payload,
+    query: web::Query<ChatWebsocketQuery>
+) -> Result<impl Responder, Error> {
+    let ChatWebsocketQuery { token } = query.into_inner();
+    log::info!("token: {}", token);
+    ws::start(WsChatSession::new(token), &req, stream)
 }
 
 pub fn message_config(cfg: &mut ServiceConfig) {

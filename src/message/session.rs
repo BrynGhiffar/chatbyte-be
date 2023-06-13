@@ -2,86 +2,81 @@ use actix::prelude::*;
 use actix_broker::BrokerIssue;
 use actix_web_actors::ws;
 
-use crate::message::{message::{LeaveRoom, ChatMessage, JoinRoom, ListRooms, SendMessage}, server::WsChatServer};
+use crate::{message::{message::{ChatMessage, SendMessage}, server::WsChatServer}, middleware::verify_token};
+
+use super::message::{UserConnects, UserDisconnects};
 
 
 
-#[derive(Default)]
+// #[derive(Default)]
 pub struct WsChatSession {
-    id: usize,
-    room: String,
-    name: Option<String>
+    token: String,
+    // id: usize,
+    // room: String,
+    // name: Option<String>
 }
 
 impl WsChatSession {
-    pub fn join_room(&mut self, room_name: &str, ctx: &mut ws::WebsocketContext<Self>) {
-        let room_name = room_name.to_owned();
 
-        let leave_msg = LeaveRoom(self.room.clone(), self.id);
+    pub fn new(token: String) -> Self {
+        Self { token }
+    }
 
-        self.issue_system_sync(leave_msg, ctx);
-        let join_msg = JoinRoom(
-            room_name.to_owned(),
-            self.name.clone(),
-            ctx.address().recipient()
-        );
 
+    pub fn user_connects(&mut self, ctx: &mut ws::WebsocketContext<Self>) {
+        let addr = ctx.address();
+        let res = verify_token(self.token.clone());
+        let Some(uid) = res else { ctx.close(None); return; };
+        log::info!("User '{}' is online", uid);
+        let user_connect_msg = UserConnects {
+            user_id: uid,
+            addr
+        };
         WsChatServer::from_registry()
-            .send(join_msg)
+            .send(user_connect_msg)
             .into_actor(self)
-            .then(|id, act, _ctx| {
-                if let Ok(id) = id {
-                    act.id = id;
-                    act.room = room_name;
-                }
-
-                fut::ready(())
-            })
+            .then(|_,_,_| fut::ready(()))
             .wait(ctx);
     }
 
-    pub fn list_rooms(&mut self, ctx: &mut ws::WebsocketContext<Self>) {
+    pub fn user_disconnects(&mut self, ctx: &mut ws::WebsocketContext<Self>) {
+        let res = verify_token(self.token.clone());
+        let Some(uid) = res else { ctx.close(None); return; };
+        let user_disconnect_msg = UserDisconnects {
+            user_id: uid,
+        };
         WsChatServer::from_registry()
-            .send(ListRooms)
+            .send(user_disconnect_msg)
             .into_actor(self)
-            .then(|res, _, ctx| {
-                if let Ok(rooms) = res {
-                    for room in rooms {
-                        ctx.text(room);
-                    }
-                }
-
-                fut::ready(())
-            })
+            .then(|_,_,_| fut::ready(()))
             .wait(ctx);
     }
 
-    pub fn send_message(&self, msg: &str) {
-        let content = format!(
-            "{}: {msg}",
-            self.name.clone().unwrap_or_else(|| "anon".to_string())
-        );
+    // pub fn send_message(&self, msg: &str) {
+    //     let content = format!(
+    //         "{}: {msg}",
+    //         "anon"
+    //     );
 
-        let msg = SendMessage(self.room.clone(), self.id, content);
+    //     let msg = SendMessage {
+    //         token: self.token,
+    //         content
+    //     };
 
-        self.issue_system_async(msg);
-    }
+    //     self.issue_system_async(msg);
+    // }
 }
 
 impl Actor for WsChatSession {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.join_room("main", ctx);
+        self.user_connects(ctx);
     }
 
-    fn stopped(&mut self, _ctx: &mut Self::Context) {
-        log::info!(
-            "WsChatSession closed for {}({}) in room {}",
-            self.name.clone().unwrap_or_else(|| "anon".to_string()),
-            self.id,
-            self.room
-        );
+    fn stopped(&mut self, ctx: &mut Self::Context) {
+        log::info!("User disconnects");
+        self.user_disconnects(ctx);
     }
 }
 
@@ -94,50 +89,23 @@ impl Handler<ChatMessage> for WsChatSession {
 }
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
-    fn handle(&mut self, item: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        let Ok(msg) = item else {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+        let Ok(msg) = msg else { 
             ctx.stop();
             return;
         };
-
-        log::debug!("WEBSOCKET MESSAGE: {msg:?}");
+        let Some(uid) = verify_token(self.token.clone()) else { ctx.close(None); return; };
 
         match msg {
             ws::Message::Text(text) => {
-                let msg = text.trim();
-
-                if msg.starts_with('/') {
-                    let mut command = msg.splitn(2, ' ');
-
-                    match command.next() {
-                        Some("/list") => self.list_rooms(ctx),
-                        Some("/join") => {
-                            if let Some(room_name) = command.next() {
-                                self.join_room(room_name, ctx);
-                            } else {
-                                ctx.text("!!! room name is required");
-                            }
-                        },
-                        Some("/name") => {
-                            if let Some(name) = command.next() {
-                                self.name = Some(name.to_owned());
-                                ctx.text(format!("name changed to: {name}"));
-                            } else {
-                                ctx.text("!!! name is required");
-                            }
-                        },
-                        _ => ctx.text(format!("!!! unknown command: {msg:?}")),
-                    }
-                    return;
-                }
-
-                self.send_message(msg);
-            },
+                log::info!("user {}: {}", uid, text);
+            }
             ws::Message::Close(reason) => {
                 ctx.close(reason);
                 ctx.stop();
+                return;
             },
             _ => {}
-        }
+        };
     }
 }

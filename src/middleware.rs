@@ -9,7 +9,7 @@ use serde_json::json;
 use sha2::Sha256;
 
 
-pub fn verify_token(token: String) -> Option<u32> {
+pub fn verify_token(token: String) -> Option<i32> {
     let token = token.trim_start_matches("Bearer ");
     let Some(secret) = std::env::var("JWT_SECRET").ok() else {
         log::info!("JWT SECRET IS MISSING");
@@ -20,7 +20,7 @@ pub fn verify_token(token: String) -> Option<u32> {
         return None;
     };
     
-    let Some(claims): Option<BTreeMap<String, u32>> = token.verify_with_key(&key).ok() else {
+    let Some(claims): Option<BTreeMap<String, i32>> = token.verify_with_key(&key).ok() else {
         log::info!("Error creating claims");
         return None;
     };
