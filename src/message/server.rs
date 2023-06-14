@@ -1,17 +1,12 @@
 use actix::prelude::*;
-use actix_broker::BrokerSubscribe;
+// use actix_broker::BrokerSubscribe;
 use sea_orm::{Database, DatabaseConnection};
 use std::collections::HashMap;
 
-use crate::message::message::{ChatMessage, SendMessage};
-
 use super::{
-    message::{ConnectDatabase, UserConnects, UserDisconnects},
+    message::{ConnectDatabase, UserConnects, UserDisconnects, IncomingServerMessage, OutgoingServerMessage},
     session::WsChatSession,
 };
-
-type Client = Recipient<ChatMessage>;
-type Room = HashMap<usize, Client>;
 
 // #[derive(Default)]
 pub struct WsChatServer {
@@ -29,25 +24,35 @@ impl Default for WsChatServer {
 }
 
 impl WsChatServer {
-    // fn send_chat_message(&mut self, room_name: &str, msg: &str, _src: usize) -> Option<()> {
-    //     let mut room = self.take_room(room_name)?;
-
-    //     for (id, client) in room.drain() {
-    //         if client.try_send(ChatMessage(msg.to_owned())).is_ok() {
-    //             self.add_client_to_room(room_name, Some(id), client);
-    //         }
-    //     }
-
-    //     Some(())
-    // }
+    fn send_message(
+        &mut self, 
+        recv: i32, 
+        msg: OutgoingServerMessage, 
+        ctx: &mut <Self as Actor>::Context
+    ) {
+        if let Some(receiver_addr) = self.clients.get(&recv) { 
+            let receiver_addr = receiver_addr.clone();
+            let msg = msg.clone();
+            let fut = async move {
+                let res = receiver_addr.send(msg).await;
+                if let Err(err) = res {
+                    match err {
+                        MailboxError::Closed => log::info!("Mailbox error closed occurred"),
+                        MailboxError::Timeout => log::info!("Mailbox error timeout occurred")
+                    }
+                };
+            };
+            let fut = actix::fut::wrap_future::<_, Self>(fut);
+            ctx.spawn(fut);
+        }
+    }
 }
 
 impl Actor for WsChatServer {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.subscribe_system_async::<SendMessage>(ctx);
-
+        ctx.set_mailbox_capacity(5);
         let addr = ctx.address();
         let fut = async move {
             let db_url = std::env::var("DATABASE_URL").expect("DATABSE_URL is missing");
@@ -87,12 +92,22 @@ impl Handler<UserDisconnects> for WsChatServer {
     }
 }
 
-impl Handler<SendMessage> for WsChatServer {
+impl Handler<IncomingServerMessage> for WsChatServer {
     type Result = ();
+    fn handle(&mut self, msg: IncomingServerMessage, ctx: &mut Self::Context) -> Self::Result {
+        let IncomingServerMessage { 
+            sender_uid, 
+            receiver_uid, 
+            content 
+        } = msg;
+        let msg = OutgoingServerMessage {
+            sender_uid,
+            receiver_uid,
+            content
+        };
 
-    fn handle(&mut self, msg: SendMessage, _ctx: &mut Self::Context) -> Self::Result {
-        // let SendMessage(room_name, id, msg) = msg;
-        // self.send_chat_message(&room_name, &msg, id);
+        self.send_message(receiver_uid, msg.clone(), ctx);
+        self.send_message(sender_uid, msg.clone(), ctx);
     }
 }
 
