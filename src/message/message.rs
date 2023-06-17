@@ -22,9 +22,16 @@ pub struct IncomingServerMessage {
 #[derive(Clone, Message, Serialize)]
 #[rtype(result = "()")]
 pub struct OutgoingServerMessage {
+    pub id: i32,
+    #[serde(rename = "senderUid")]
     pub sender_uid: i32,
+    #[serde(rename = "receiverUid")]
     pub receiver_uid: i32,
-    pub content: String
+    pub content: String,
+    #[serde(rename = "isUser")]
+    pub is_user: bool,
+    #[serde(rename = "sentAt")]
+    pub sent_at: String
 }
 
 #[derive(Clone, Message)]

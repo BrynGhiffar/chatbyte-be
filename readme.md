@@ -1,7 +1,7 @@
 # Vite Chat App Backend
 
 ## Next Steps
-- [ ] Remove room functionality, implement websockets like in ts proj
+- [x] Remove room functionality, implement websockets like in ts proj
 
 ## Building
 

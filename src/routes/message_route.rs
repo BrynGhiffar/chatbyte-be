@@ -1,9 +1,9 @@
-use actix_web::{HttpRequest, Responder, HttpResponse, web::{ServiceConfig, get, self}, Error};
+use actix_web::{HttpRequest, Responder, web::{ServiceConfig, get, self}, Error};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder};
 
-use crate::{middleware::VerifyToken, app::AppState, entities::message, utility::{bad_request, server_error}, message::session::WsChatSession};
+use crate::{middleware::VerifyToken, app::AppState, entities::message, utility::{bad_request, server_error, success}, message::session::WsChatSession};
 
 #[derive(Deserialize)]
 pub struct MessageReceiver {
@@ -63,7 +63,7 @@ pub async fn get_messages(
         content: m.content,
         time: m.sent_at.format("%H:%M").to_string()
     }).collect::<Vec<_>>();
-    return HttpResponse::BadGateway().json(messages);
+    return success(messages);
 }
 
 #[derive(Deserialize)]

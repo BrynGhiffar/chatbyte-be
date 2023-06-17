@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, future::{Ready, ready}};
 
-use actix_web::{dev::{Transform, ServiceRequest, Service, ServiceResponse, self}, HttpResponse, body::EitherBody, http::header::{HeaderValue, HeaderName}};
+use actix_web::{dev::{Transform, ServiceRequest, Service, ServiceResponse, self}, HttpResponse, body::EitherBody, http::header::{HeaderValue, HeaderName}, HttpRequest};
 use actix_web::Error;
 use futures_util::future::LocalBoxFuture;
 use hmac::{ Hmac, Mac };
@@ -25,6 +25,14 @@ pub fn verify_token(token: String) -> Option<i32> {
         return None;
     };
     return claims.get("uid").map(|n| n.clone());
+}
+
+pub fn get_uid_from_header(req: HttpRequest) -> Option<i32> {
+    let uid = req.headers().get("uid")
+        .map(|v| v.to_str().ok()).flatten()
+        .map(|s| s.to_string())
+        .map(|s| s.parse::<i32>().ok()).flatten();
+    uid
 }
 
 pub struct VerifyToken;

@@ -1,7 +1,10 @@
-use actix::prelude::*;
+use actix::{prelude::*, fut::wrap_future};
+use chrono::{ Local, offset::TimeZone };
 // use actix_broker::BrokerSubscribe;
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{Database, DatabaseConnection, ActiveModelTrait};
 use std::collections::HashMap;
+
+use crate::entities::message;
 
 use super::{
     message::{ConnectDatabase, UserConnects, UserDisconnects, IncomingServerMessage, OutgoingServerMessage},
@@ -100,14 +103,36 @@ impl Handler<IncomingServerMessage> for WsChatServer {
             receiver_uid, 
             content 
         } = msg;
-        let msg = OutgoingServerMessage {
-            sender_uid,
-            receiver_uid,
-            content
-        };
 
-        self.send_message(receiver_uid, msg.clone(), ctx);
-        self.send_message(sender_uid, msg.clone(), ctx);
+        let Some(db) = self.db.clone() else { return; };
+        let new_message = message::ActiveModel {
+            receiver_id: sea_orm::ActiveValue::Set(receiver_uid),
+            sender_id: sea_orm::ActiveValue::Set(sender_uid),
+            content: sea_orm::ActiveValue::Set(content.clone()),
+            sent_at: sea_orm::ActiveValue::Set(Local::now().naive_local()),
+            ..Default::default()
+        };
+        let fut = async move {
+            new_message.insert(&db).await.ok()
+        };
+        let fut = wrap_future::<_, Self>(fut).then(move |msg, act, ctx| {
+            let Some(msg) = msg else { return fut::ready(()); };
+            let sent_at = Local.from_local_datetime(&msg.sent_at).unwrap();
+            let msg = OutgoingServerMessage {
+                id: msg.id,
+                sender_uid,
+                receiver_uid,
+                is_user: true,
+                content,
+                sent_at: sent_at.format("%H:%M").to_string()
+            };
+            let mut recv_msg = msg.clone();
+            recv_msg.is_user = false;
+            act.send_message(receiver_uid, recv_msg.clone(), ctx);
+            act.send_message(sender_uid, msg.clone(), ctx);
+            fut::ready(())
+        });
+        ctx.spawn(fut);
     }
 }
 

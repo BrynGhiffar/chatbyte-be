@@ -13,14 +13,20 @@ pub async fn run() -> std::io::Result<()> {
 
     let server = HttpServer::new(move || {
 
+        // let cors = Cors::default()
+        //     .allowed_origin("http://localhost:5173")
+        //     .allow_any_origin()
+        //     .allow_any_header();
+        let logger = Logger::default();
+        let cors = Cors::permissive();
         App::new()
-            .wrap(Logger::default())
-            .wrap(Cors::default().allow_any_origin())
+            .wrap(logger)
+            .wrap(cors)
             .app_data(web::Data::new(state.clone()))
             .route("/healthcheck", web::get().to(healthcheck))
-            .service(web::scope("/auth").configure(auth_config))
-            .service(web::scope("/message").configure(message_config))
-            .service(web::scope("/contact").configure(contact_config))
+            .service(web::scope("/api/auth").configure(auth_config))
+            .service(web::scope("/api/message").configure(message_config))
+            .service(web::scope("/api/contacts").configure(contact_config))
     });
 
     let port = 8080;
