@@ -23,7 +23,7 @@ pub async fn run() -> std::io::Result<()> {
             .wrap(logger)
             .wrap(cors)
             .app_data(web::Data::new(state.clone()))
-            .route("/healthcheck", web::get().to(healthcheck))
+            .route("/api/healthcheck", web::get().to(healthcheck))
             .service(web::scope("/api/auth").configure(auth_config))
             .service(web::scope("/api/message").configure(message_config))
             .service(web::scope("/api/contacts").configure(contact_config))

@@ -8,12 +8,8 @@ use super::message::{UserConnects, UserDisconnects, IncomingServerMessage, Outgo
 
 
 
-// #[derive(Default)]
 pub struct WsChatSession {
     token: String,
-    // id: usize,
-    // room: String,
-    // name: Option<String>
 }
 
 impl WsChatSession {

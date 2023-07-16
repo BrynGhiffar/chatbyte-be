@@ -15,6 +15,7 @@ pub struct Model {
     pub receiver_id: i32,
     #[sea_orm(column_type = "Text")]
     pub content: String,
+    pub read: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

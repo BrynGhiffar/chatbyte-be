@@ -1,9 +1,9 @@
 use actix_web::{HttpRequest, Responder, web::{ServiceConfig, get, self}, Error};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder};
+use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder, sea_query::Expr};
 
-use crate::{middleware::VerifyToken, app::AppState, entities::message, utility::{bad_request, server_error, success}, message::session::WsChatSession};
+use crate::{middleware::{VerifyToken, get_uid_from_header}, app::AppState, entities::message, utility::{bad_request, server_error, success}, message::session::WsChatSession};
 
 #[derive(Deserialize)]
 pub struct MessageReceiver {
@@ -32,7 +32,7 @@ pub async fn get_messages(
     let db = &state.db;
     let receiver_uid = query.receiver_uid.clone();
     let Some(receiver_uid) = receiver_uid.parse::<i32>().ok() else {
-        return bad_request("invalid receiver uid ");
+        return bad_request("invalid receiver uid");
     };
     let uid = req.headers().get("uid")
         .map(|v| v.to_str().ok()).flatten()
@@ -66,6 +66,27 @@ pub async fn get_messages(
     return success(messages);
 }
 
+pub async fn update_read_messages(
+    query: web::Query<MessageReceiver>,
+    state: web::Data<AppState>,
+    req: HttpRequest
+) -> impl Responder{
+    let Some(receiver_uid) = query.into_inner().receiver_uid.parse::<i32>().ok() else {
+        return bad_request("invalid receiverUid");
+    };
+    let db = &state.db;
+    let uid = get_uid_from_header(req).unwrap();
+    let res = message::Entity::update_many()
+        .col_expr(message::Column::Read, Expr::value(true))
+        .filter(message::Column::ReceiverId.eq(uid).and(message::Column::SenderId.eq(receiver_uid)))
+        .exec(db)
+        .await;
+    let Some(_) = res.ok() else {
+        return server_error("Database error occurred");
+    };
+    return success("Unread messages");
+}
+
 #[derive(Deserialize)]
 struct ChatWebsocketQuery {
     token: String
@@ -82,6 +103,7 @@ async fn chat_websocket(
 
 pub fn message_config(cfg: &mut ServiceConfig) {
     cfg.route("", get().to(get_messages).wrap(VerifyToken));
+    cfg.route("/read", web::put().to(update_read_messages).wrap(VerifyToken));
     cfg.route("/ws", get().to(chat_websocket));
     // cfg.service(web::)
 }
