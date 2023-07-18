@@ -2,6 +2,12 @@
 
 ## Next Steps
 - [x] Remove room functionality, implement websockets like in ts proj
+- [ ] Implement message read server sent notification.
+- [ ] Implement token expiration.
+- [ ] Implement update email, password and username.
+- [ ] Implement update profile picture.
+- [ ] Implement session functionality using redis
+- [ ] Implement logout functionality
 
 ## Sea orm
 generate entities from the database
