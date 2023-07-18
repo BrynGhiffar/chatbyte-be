@@ -45,7 +45,7 @@ pub struct ConversationRecentMessages {
     pub sent_at: NaiveDateTime,
     pub sender_id: i32,
     pub receiver_id: i32,
-    pub content: String,
+    pub last_message: String,
     pub unread_count: i64,
     pub username: String
 }
@@ -61,35 +61,22 @@ pub async fn recent_conversation(
         Statement::from_sql_and_values(
             DbBackend::Postgres, 
             r#"
-                select
-                    "Message"."id" as id,
-                    "Message"."sentAt" as sent_at,
-                    "Message"."receiverId" as receiver_id,
-                    "Message"."senderId" as sender_id,
-                    "Message"."content" as content,
-                    lasts."unreadCount" as unread_count,
-                    "User"."username" as username
-                from "Message" 
-                join "User" on
-                    (case when "Message"."senderId" = $1 then "Message"."receiverId" else "Message"."senderId" end) = "User"."id"
-                join (
-                    select 
-                        max(tbl."id") as "messageId",
-                        sum(case when (tbl."read" = false and tbl."senderId" != $1) then 1 else 0 end) as "unreadCount"
-                    from (
-                        select
-                            "Message"."id",
-                            "Message"."read",
-                            "Message"."senderId",
-                            case when "Message"."senderId" < "Message"."receiverId" then "Message"."senderId" else "Message"."receiverId" end as c1,
-                            case when "Message"."senderId" < "Message"."receiverId" then "Message"."receiverId" else "Message"."senderId" end as c2
-                        from "Message"
-                    ) as tbl
-                    group by c1, c2
-                ) as lasts on "Message"."id" = lasts."messageId"
-                where "Message"."senderId" = $1 or "Message"."receiverId" = $1;
+                SELECT
+                    unread_message_content.id,
+                    sender_id,
+                    receiver_id, sent_at, 
+                    CASE WHEN receiver_id != $1 THEN 0 ELSE unread_count END,
+                    last_message,
+                    public.user.username
+                FROM unread_message_content
+                JOIN public.user ON 
+                    CASE WHEN least(receiver_id, sender_id) = $1 
+                        THEN GREATEST(receiver_id, sender_id) = public.user.id 
+                        ELSE LEAST(receiver_id, sender_id) = public.user.id 
+                    END
+                WHERE LEAST(receiver_id, sender_id) = $1 or GREATEST(receiver_id, sender_id) = $1
                 ;
-            "#, 
+                "#, 
             [uid.into()]
         ))
         .all(db)
@@ -105,7 +92,7 @@ pub async fn recent_conversation(
             "username": m.username,
             "sent_at": sent_at,
             "contact_id": contact_id,
-            "content": m.content,
+            "content": m.last_message,
             "unread_count": m.unread_count
         })
     }).collect::<Vec<_>>();

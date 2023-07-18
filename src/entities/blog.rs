@@ -3,24 +3,21 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "Blog")]
+#[sea_orm(table_name = "blog")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false, column_type = "Text")]
     pub id: String,
-    #[sea_orm(column_name = "authorId")]
     pub author_id: i32,
     #[sea_orm(column_type = "Text")]
     pub title: String,
     #[sea_orm(column_type = "Text")]
     pub content: String,
-    #[sea_orm(column_name = "createdAt")]
     pub created_at: DateTime,
     #[sea_orm(column_type = "Text")]
     pub summary: String,
-    #[sea_orm(column_name = "updatedAt")]
     pub updated_at: DateTime,
-    #[sea_orm(column_type = "Text")]
-    pub thumbnail: String,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub thumbnail: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

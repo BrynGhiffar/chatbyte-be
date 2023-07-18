@@ -3,15 +3,12 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "Message")]
+#[sea_orm(table_name = "message")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    #[sea_orm(column_name = "sentAt")]
     pub sent_at: DateTime,
-    #[sea_orm(column_name = "senderId")]
     pub sender_id: i32,
-    #[sea_orm(column_name = "receiverId")]
     pub receiver_id: i32,
     #[sea_orm(column_type = "Text")]
     pub content: String,
