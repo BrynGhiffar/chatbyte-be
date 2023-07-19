@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, future::{Ready, ready}};
+use std::{collections::BTreeMap, future::{Ready, ready}, time::{SystemTime, UNIX_EPOCH}};
 
 use actix_web::{dev::{Transform, ServiceRequest, Service, ServiceResponse, self}, HttpResponse, body::EitherBody, http::header::{HeaderValue, HeaderName}, HttpRequest};
 use actix_web::Error;
@@ -9,22 +9,41 @@ use serde_json::json;
 use sha2::Sha256;
 
 
-pub fn verify_token(token: String) -> Option<i32> {
+pub fn verify_token(token: String) -> Result<i32, String> {
     let token = token.trim_start_matches("Bearer ");
     let Some(secret) = std::env::var("JWT_SECRET").ok() else {
-        log::info!("JWT SECRET IS MISSING");
-        return None;
+        return Err("Secret key to verify to jwt is missing".to_string());
     };
     let Some(key): Option<Hmac<Sha256>> = Hmac::new_from_slice(secret.as_bytes()).ok() else {
-        log::info!("Error creating key");
-        return None;
+        return Err("Error creating secret key hmac".to_string());
     };
     
-    let Some(claims): Option<BTreeMap<String, i32>> = token.verify_with_key(&key).ok() else {
-        log::info!("Error creating claims");
-        return None;
+    let Some(claims): Option<BTreeMap<String, u64>> = token.verify_with_key(&key).ok() else {
+        return Err("Error decoding token payload".to_string());
     };
-    return claims.get("uid").map(|n| n.clone());
+
+    let Some(uid): Option<u64> = claims.get("uid").map(|n| n.clone()) else {
+        return Err("Uid is missing from payload".to_string());
+    };
+
+    let Some(expiration): Option<u64> = claims.get("expiration").map(|n| n.clone()) else {
+        return Err("Expiration is missing from headers".to_string());
+    };
+
+    let current_timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    if expiration <= current_timestamp {
+        return Err("Token has expired".to_string());
+    };
+
+    let Some(uid) = i32::try_from(uid).ok() else {
+        return Err("UID cannot be cast from payload".to_string());
+    };
+
+    return Ok(uid);
 }
 
 pub fn get_uid_from_header(req: HttpRequest) -> Option<i32> {
@@ -87,8 +106,10 @@ where
         let Ok(token) = token.to_str() else {
             return bad_request(req, "Cannot convert token to string".to_string());
         };
-        let Some(uid) = verify_token(token.to_string()) else {
-            return bad_request(req, "Token is invalid".to_string());
+
+        let uid = match verify_token(token.to_string()) {
+            Ok(uid) => uid,
+            Err(msg) => return bad_request(req, msg)
         };
         let uid = uid.to_string();
         let Ok(uid) = HeaderValue::from_str(&uid) else {

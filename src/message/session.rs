@@ -22,7 +22,7 @@ impl WsChatSession {
     pub fn user_connects(&mut self, ctx: &mut ws::WebsocketContext<Self>) {
         let addr = ctx.address();
         let res = verify_token(self.token.clone());
-        let Some(uid) = res else { ctx.close(None); return; };
+        let Ok(uid) = res else { ctx.close(None); return; };
         log::info!("User '{}' is online", uid);
         let user_connect_msg = UserConnects {
             user_id: uid,
@@ -37,7 +37,7 @@ impl WsChatSession {
 
     pub fn user_disconnects(&mut self, ctx: &mut ws::WebsocketContext<Self>) {
         let res = verify_token(self.token.clone());
-        let Some(uid) = res else { ctx.close(None); return; };
+        let Ok(uid) = res else { ctx.close(None); return; };
         log::info!("User '{}' is disconnecting", uid);
         let user_disconnect_msg = UserDisconnects {
             user_id: uid,
@@ -50,7 +50,7 @@ impl WsChatSession {
     }
 
     pub fn send_message(&self, msg: IncomingSessionMessage, ctx: &mut ws::WebsocketContext<Self>) {
-        let Some(sender_uid) = verify_token(self.token.clone()) else {
+        let Ok(sender_uid) = verify_token(self.token.clone()) else {
             return;
         };
         let msg = IncomingServerMessage {

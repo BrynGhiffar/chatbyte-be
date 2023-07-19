@@ -74,7 +74,7 @@ pub async fn recent_conversation(
                         THEN GREATEST(receiver_id, sender_id) = public.user.id 
                         ELSE LEAST(receiver_id, sender_id) = public.user.id 
                     END
-                WHERE LEAST(receiver_id, sender_id) = $1 or GREATEST(receiver_id, sender_id) = $1
+                WHERE $1 in (sender_id, receiver_id)
                 ;
                 "#, 
             [uid.into()]
