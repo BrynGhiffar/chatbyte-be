@@ -35,15 +35,8 @@ async fn login(
     if !valid {
         return fail_br("Incorrect password");
     }
-    let Ok(secret) = std::env::var("JWT_SECRET") else {
-        return fail_ise("JWT_SECRET is missing");
-    };
-    let Ok(expiration) = std::env::var("JWT_EXPIRATION_MINS") else {
-        return fail_ise("JWT_EXPIRATION_MINS is missing");
-    };
-    let Some(expiration) = expiration.parse::<u64>().ok() else {
-        return fail_ise("Cannot parse JWT_EXPIRATION_MINS to u64");
-    };
+    let secret = state.env_jwt_secret.clone();
+    let expiration = state.env_jwt_secret_mins.clone();
     let since_the_epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
