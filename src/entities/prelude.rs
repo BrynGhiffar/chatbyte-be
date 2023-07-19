@@ -3,3 +3,4 @@
 pub use super::blog::Entity as Blog;
 pub use super::message::Entity as Message;
 pub use super::user::Entity as User;
+pub use super::user_avatar::Entity as UserAvatar;

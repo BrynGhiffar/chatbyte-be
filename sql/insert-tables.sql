@@ -1,8 +1,9 @@
 DROP VIEW IF EXISTS public.unread_message_content;
 DROP VIEW IF EXISTS public.unread_message_count;
-DROP VIEW IF EXISTS public.unread_message;
+-- DROP VIEW IF EXISTS public.unread_message;
 DROP VIEW IF EXISTS public.last_message;
 DROP VIEW IF EXISTS public.message_sender;
+DROP TABLE IF EXISTS public.user_avatar;
 DROP TABLE IF EXISTS public.blog;
 DROP TABLE IF EXISTS public.message;
 DROP TABLE IF EXISTS public.user;
@@ -52,8 +53,17 @@ CREATE TABLE public.user (
     role text DEFAULT 'guest'::text NOT NULL
 );
 
+ALTER TABLE public.user OWNER TO postgres;
+
+CREATE TABLE public.user_avatar (
+    user_id integer,
+    avatar_image bytea
+);
 
 ALTER TABLE public.user OWNER TO postgres;
+
+ALTER TABLE ONLY public.user_avatar
+    ADD CONSTRAINT user_avatar_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user(id) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 CREATE SEQUENCE public.user_id_seq
     AS integer
