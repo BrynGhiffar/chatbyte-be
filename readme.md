@@ -4,8 +4,8 @@
 - [x] Remove room functionality, implement websockets like in ts proj
 - [ ] Implement message read server sent notification.
 - [x] Implement token expiration.
-- [ ] Implement update email, password and username.
-- [ ] Implement update profile picture.
+- [x] Implement update email, password and username.
+- [x] Implement update profile picture.
 - [ ] Implement session functionality using redis
 - [ ] Implement logout functionality
 
