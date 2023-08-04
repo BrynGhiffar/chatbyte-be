@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix_web::{web::{ServiceConfig, self, Json}, Responder, HttpResponse, HttpRequest};
 use sea_orm::{ActiveModelTrait, EntityTrait, ColumnTrait, QueryFilter, ConnectionTrait, Statement, DatabaseBackend, DatabaseConnection, ActiveValue };
 use serde_json::json;
-use crate::{app::AppState, middleware::{VerifyToken, get_uid_from_header}, entities::{user_avatar, user}, utility::{bad_request, success}};
+use crate::{app::AppState, middleware::{VerifyToken, get_uid_from_header}, entities::{user_avatar, user}, utility::{bad_request, success, server_error}};
 use futures::StreamExt;
 use serde::Deserialize;
 
@@ -94,36 +94,34 @@ pub async fn upload_avatar(
         bytes.extend_from_slice(&item);
     }
     let bytes = bytes.to_vec();
-    let new_avatar = user_avatar::ActiveModel {
-        user_id: sea_orm::ActiveValue::Set(uid),
-        avatar_image: sea_orm::ActiveValue::Set(bytes),
-        ..Default::default()
+
+    let res = match user_avatar::Entity::find().filter(user_avatar::Column::UserId.eq(uid)).one(db).await {
+        Ok(res) => res,
+        Err(err) => return server_error(&err.to_string())
     };
-    // let res = new_avatar.insert(db).await;
-    match new_avatar.insert(db).await {
-        Ok(_) => return HttpResponse::Created().json(json!({
-            "success": true,
-            "message": "Image uploaded successfully"
-        })),
-        Err(err) => return HttpResponse::InternalServerError()
-            .json(json!({
-                "success": false,
-                "message": err.to_string()
-            }))
-    };
-    // if let Err(err) = res {
-    //     err.to_string();
-    // }
-    // let Some(_) = res.ok() else {
-    //     return HttpResponse::InternalServerError().json(json!({
-    //         "success": false,
-    //         "message": "Error uploading image"
-    //     }));
-    // };
-    // return HttpResponse::Created().json(json!({
-    //     "success": true,
-    //     "message": "Image successfully uploaded"
-    // }));
+    if let Some(res_user_avatar) = res {
+        let mut res_user_avatar: user_avatar::ActiveModel = res_user_avatar.into();
+        res_user_avatar.avatar_image = sea_orm::ActiveValue::Set(bytes);
+        match res_user_avatar.update(db).await {
+            Ok(_) => return success("Successfully updated image"),
+            Err(err) => return bad_request(&err.to_string())
+        };
+    } else {
+        let new_avatar = user_avatar::ActiveModel {
+            user_id: sea_orm::ActiveValue::Set(uid),
+            avatar_image: sea_orm::ActiveValue::Set(bytes),
+            ..Default::default()
+        };
+        // let res = new_avatar.insert(db).await;
+        match new_avatar.insert(db).await {
+            Ok(_) => return success("Successfully uploaded image"),
+            Err(err) => return HttpResponse::InternalServerError()
+                .json(json!({
+                    "success": false,
+                    "message": err.to_string()
+                }))
+        };
+    }
 }
 
 pub async fn get_avatar(
