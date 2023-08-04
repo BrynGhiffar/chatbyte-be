@@ -1,6 +1,5 @@
 DROP VIEW IF EXISTS public.unread_message_content;
 DROP VIEW IF EXISTS public.unread_message_count;
--- DROP VIEW IF EXISTS public.unread_message;
 DROP VIEW IF EXISTS public.last_message;
 DROP VIEW IF EXISTS public.message_sender;
 DROP TABLE IF EXISTS public.user_avatar;
@@ -74,7 +73,7 @@ CREATE SEQUENCE public.user_avatar_id_seq
 ALTER SEQUENCE public.user_avatar_id_seq
     OWNED BY public.user_avatar.id;
 
-ALTER TABLE ONLY public.user_avatar alter COLUMN id SET DEFAULT('public.user_avatar_id_seq'::regclass);
+ALTER TABLE ONLY public.user_avatar alter COLUMN id SET DEFAULT nextval('public.user_avatar_id_seq'::regclass);
 
 ALTER TABLE ONLY public.user_avatar
     ADD CONSTRAINT user_avatar_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user(id) ON UPDATE CASCADE ON DELETE RESTRICT;

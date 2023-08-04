@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix_web::{web::{ServiceConfig, self, Json}, Responder, HttpResponse, HttpRequest};
 use sea_orm::{ActiveModelTrait, EntityTrait, ColumnTrait, QueryFilter, ConnectionTrait, Statement, DatabaseBackend, DatabaseConnection, ActiveValue };
 use serde_json::json;
-use crate::{app::AppState, middleware::{VerifyToken, get_uid_from_header}, entities::{user_avatar, user}};
+use crate::{app::AppState, middleware::{VerifyToken, get_uid_from_header}, entities::{user_avatar, user}, utility::{bad_request, success}};
 use futures::StreamExt;
 use serde::Deserialize;
 
@@ -99,16 +99,31 @@ pub async fn upload_avatar(
         avatar_image: sea_orm::ActiveValue::Set(bytes),
         ..Default::default()
     };
-    let Some(_) = new_avatar.insert(db).await.ok() else {
-        return HttpResponse::InternalServerError().json(json!({
-            "success": false,
-            "message": "Error uploading image"
-        }));
+    // let res = new_avatar.insert(db).await;
+    match new_avatar.insert(db).await {
+        Ok(_) => return HttpResponse::Created().json(json!({
+            "success": true,
+            "message": "Image uploaded successfully"
+        })),
+        Err(err) => return HttpResponse::InternalServerError()
+            .json(json!({
+                "success": false,
+                "message": err.to_string()
+            }))
     };
-    return HttpResponse::Created().json(json!({
-        "success": true,
-        "message": "Image successfully uploaded"
-    }));
+    // if let Err(err) = res {
+    //     err.to_string();
+    // }
+    // let Some(_) = res.ok() else {
+    //     return HttpResponse::InternalServerError().json(json!({
+    //         "success": false,
+    //         "message": "Error uploading image"
+    //     }));
+    // };
+    // return HttpResponse::Created().json(json!({
+    //     "success": true,
+    //     "message": "Image successfully uploaded"
+    // }));
 }
 
 pub async fn get_avatar(
@@ -118,17 +133,32 @@ pub async fn get_avatar(
     let db = &state.db;
     let empty_profile = state.empty_profile.clone();
     let uid = uid.into_inner();
-    let Ok(avatar) = user_avatar::Entity::find().filter(user_avatar::Column::UserId.eq(uid)).one(db).await else {
-        return HttpResponse::InternalServerError().body(empty_profile);
-    };
-    let Some(avatar) = avatar else {
+    let Ok(Some(avatar)) = user_avatar::Entity::find().filter(user_avatar::Column::UserId.eq(uid)).one(db).await else {
         return HttpResponse::InternalServerError().body(empty_profile);
     };
     return HttpResponse::Ok().body(avatar.avatar_image);
 }
 
+pub async fn get_user_details(
+    req: HttpRequest,
+    state: web::Data<AppState>
+) -> impl Responder {
+    let db = &state.db;
+    let uid = get_uid_from_header(req).expect("user id is missing from header");
+
+    let Ok(Some(model)) = user::Entity::find_by_id(uid).one(db).await else {
+        return bad_request("User not found");
+    };
+
+    return success(json!({
+        "uid": model.id,
+        "username": model.username
+    }));
+}
+
 pub fn user_config(cfg: &mut ServiceConfig) {
-    cfg.route("/", web::put().to(update_user).wrap(VerifyToken));
+    cfg.route("", web::put().to(update_user).wrap(VerifyToken));
+    cfg.route("/details", web::get().to(get_user_details).wrap(VerifyToken));
     cfg.route("/avatar", web::post().to(upload_avatar).wrap(VerifyToken));
     cfg.route("/avatar/{uid}", web::get().to(get_avatar));
 }
