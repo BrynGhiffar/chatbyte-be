@@ -4,7 +4,7 @@ use sea_orm::{
     FromQueryResult, QueryFilter, QueryOrder, Statement,
 };
 
-use crate::entities::message;
+use crate::repository::entities::message;
 
 #[derive(Clone)]
 pub struct MessageRepository {

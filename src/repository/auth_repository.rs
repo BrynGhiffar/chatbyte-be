@@ -3,7 +3,7 @@ use sea_orm::{
     DatabaseConnection, DbErr, EntityTrait, QueryFilter, Statement,
 };
 
-use crate::entities::user;
+use crate::repository::entities::user;
 
 #[derive(Clone)]
 pub struct AuthRepository {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     app::AppState,
-    entities::user,
+    repository::entities::user,
     middleware::{get_uid_from_header, VerifyToken},
     utility::{ApiError::*, ApiResult, ApiSuccess::*},
 };

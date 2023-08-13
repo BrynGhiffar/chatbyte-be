@@ -1,4 +1,4 @@
-use crate::entities::user;
+use crate::repository::entities::user;
 use sea_orm::{
     ColumnTrait, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
 };

@@ -4,7 +4,7 @@ use chrono::{offset::TimeZone, Local};
 use sea_orm::{ActiveModelTrait, Database, DatabaseConnection};
 use std::collections::HashMap;
 
-use crate::entities::message;
+use crate::repository::entities::message;
 
 use super::{
     message::{

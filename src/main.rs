@@ -3,7 +3,6 @@ mod routes;
 mod run;
 use actix_web;
 mod app;
-mod entities;
 mod message;
 mod middleware;
 mod repository;

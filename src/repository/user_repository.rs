@@ -3,7 +3,7 @@ use sea_orm::{
     QueryFilter, Statement,
 };
 
-use crate::entities::user_avatar;
+use crate::repository::entities::user_avatar;
 
 #[derive(Clone)]
 pub struct UserRepository {
