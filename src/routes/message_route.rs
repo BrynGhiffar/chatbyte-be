@@ -1,9 +1,59 @@
 use actix_web::{HttpRequest, Responder, web::{ServiceConfig, get, self}, Error};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder, sea_query::Expr};
+use crate::{middleware::{VerifyToken, get_uid_from_header}, app::AppState, utility::{ApiResult, ApiSuccess::*}, message::session::WsChatSession};
 
-use crate::{middleware::{VerifyToken, get_uid_from_header}, app::AppState, entities::message, utility::{ApiResult, ApiSuccess::*}, message::session::WsChatSession};
+pub fn message_config(cfg: &mut ServiceConfig) {
+    cfg.route("", get().to(get_messages).wrap(VerifyToken));
+    cfg.route("/read", web::put().to(update_read_messages).wrap(VerifyToken));
+    cfg.route("/ws", get().to(chat_websocket));
+}
+
+pub async fn get_messages(
+    query: web::Query<MessageReceiver>,
+    state: web::Data<AppState>,
+    req: HttpRequest
+) -> ApiResult<Vec<ClientMessage>> {
+    let receiver_uid = query.receiver_uid;
+    let uid = get_uid_from_header(req).unwrap();
+    let messages = state.message_repository.get_message_between_users(uid, receiver_uid).await?;
+    let messages = messages.into_iter().map(|m| ClientMessage {
+        id: m.id,
+        receiver_id: m.receiver_id,
+        sender_id: m.sender_id,
+        is_user: (uid == m.sender_id),
+        content: m.content,
+        time: m.sent_at.format("%H:%M").to_string()
+    }).collect::<Vec<_>>();
+    Ok(Success(messages))
+}
+
+pub async fn update_read_messages(
+    query: web::Query<MessageReceiver>,
+    state: web::Data<AppState>,
+    req: HttpRequest
+) -> ApiResult<&'static str> {
+    let receiver_uid = query.receiver_uid;
+    let uid = get_uid_from_header(req).unwrap();
+    state.message_repository.update_message_read(uid, receiver_uid).await?;
+    return Ok(Success("Unread messages"));
+}
+
+async fn chat_websocket(
+    req: HttpRequest, 
+    stream: web::Payload,
+    query: web::Query<ChatWebsocketQuery>
+) -> Result<impl Responder, Error> {
+    let ChatWebsocketQuery { token } = query.into_inner();
+    log::info!("token: {}", token);
+    ws::start(WsChatSession::new(token), &req, stream)
+}
+
+// --- UTILITY SRUCTS ---
+#[derive(Deserialize)]
+struct ChatWebsocketQuery {
+    token: String
+}
 
 #[derive(Deserialize)]
 pub struct MessageReceiver {
@@ -22,72 +72,4 @@ pub struct ClientMessage {
     pub is_user: bool,
     pub content: String,
     pub time: String
-}
-
-pub async fn get_messages(
-    query: web::Query<MessageReceiver>,
-    state: web::Data<AppState>,
-    req: HttpRequest
-) -> ApiResult<Vec<ClientMessage>> {
-    let db = &state.db;
-    let receiver_uid = query.receiver_uid;
-    let uid = get_uid_from_header(req).unwrap();
-    let messages = message::Entity::find()
-        .filter(
-            message::Column::ReceiverId.eq(uid)
-                .and(message::Column::SenderId.eq(receiver_uid))
-                .or(
-                    message::Column::ReceiverId.eq(receiver_uid)
-                    .and(message::Column::SenderId.eq(uid))
-                )
-        )
-        .order_by_asc(message::Column::SentAt)
-        .all(db)
-        .await?
-        ;
-    let messages = messages.into_iter().map(|m| ClientMessage {
-        id: m.id,
-        receiver_id: m.receiver_id,
-        sender_id: m.sender_id,
-        is_user: (uid == m.sender_id),
-        content: m.content,
-        time: m.sent_at.format("%H:%M").to_string()
-    }).collect::<Vec<_>>();
-    Ok(Success(messages))
-}
-
-pub async fn update_read_messages(
-    query: web::Query<MessageReceiver>,
-    state: web::Data<AppState>,
-    req: HttpRequest
-) -> ApiResult<&'static str> {
-    let receiver_uid = query.receiver_uid;
-    let db = &state.db;
-    let uid = get_uid_from_header(req).unwrap();
-    message::Entity::update_many()
-        .col_expr(message::Column::Read, Expr::value(true))
-        .filter(message::Column::ReceiverId.eq(uid).and(message::Column::SenderId.eq(receiver_uid)))
-        .exec(db)
-        .await?;
-    return Ok(Success("Unread messages"));
-}
-
-#[derive(Deserialize)]
-struct ChatWebsocketQuery {
-    token: String
-}
-async fn chat_websocket(
-    req: HttpRequest, 
-    stream: web::Payload,
-    query: web::Query<ChatWebsocketQuery>
-) -> Result<impl Responder, Error> {
-    let ChatWebsocketQuery { token } = query.into_inner();
-    log::info!("token: {}", token);
-    ws::start(WsChatSession::new(token), &req, stream)
-}
-
-pub fn message_config(cfg: &mut ServiceConfig) {
-    cfg.route("", get().to(get_messages).wrap(VerifyToken));
-    cfg.route("/read", web::put().to(update_read_messages).wrap(VerifyToken));
-    cfg.route("/ws", get().to(chat_websocket));
 }

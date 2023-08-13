@@ -1,22 +1,18 @@
 use std::{collections::BTreeMap, time::{SystemTime, UNIX_EPOCH, Duration}};
 
 use actix_web::{ Either, web::{Json, Form, ServiceConfig, self}, HttpRequest};
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait };
 use hmac::{ Hmac, Mac };
 use sha2::Sha256;
 use jwt::SignWithKey;
-use crate::{req_model::auth_req_model::LoginForm, entities::user, app::AppState, utility:: ApiResult, middleware::{get_uid_from_header, VerifyToken}};
+use crate::{req_model::auth_req_model::LoginForm, app::AppState, utility:: ApiResult, middleware::{get_uid_from_header, VerifyToken}};
 use crate::utility::{ApiError, ApiSuccess};
 
 use ApiError::*;
 use ApiSuccess::*;
 
-pub fn email_not_found(email: String) -> ApiError {
-    BadRequest(format!("User with email {:?} is not found", email.clone()))
-}
-
-pub fn incorrect_password() -> ApiError {
-    BadRequest("Incorrect password".to_string())
+pub fn auth_config(cfg: &mut ServiceConfig) {
+    cfg.route("/login", web::post().to(login));
+    cfg.route("/valid-token", web::get().to(valid_token).wrap(VerifyToken));
 }
 
 async fn login(
@@ -26,9 +22,7 @@ async fn login(
 
     let LoginForm { email, password } = body.into_inner();
     let state = state.into_inner();
-    let tuser = user::Entity::find()
-        .filter(user::Column::Email.eq(email.clone()))
-        .one(&state.db).await?
+    let tuser = state.auth_repository.find_user_by_email(email.clone()).await?
         .ok_or(email_not_found(email.clone()))?;
     let valid = bcrypt::verify(&password, &tuser.password).map_err(|e| ServerError(e.to_string()))?;
     if !valid {
@@ -55,7 +49,10 @@ async fn valid_token(
    return Ok(Success("Token is valid"));
 }
 
-pub fn auth_config(cfg: &mut ServiceConfig) {
-    cfg.route("/login", web::post().to(login));
-    cfg.route("/valid-token", web::get().to(valid_token).wrap(VerifyToken));
+pub fn email_not_found(email: String) -> ApiError {
+    BadRequest(format!("User with email {:?} is not found", email.clone()))
+}
+
+pub fn incorrect_password() -> ApiError {
+    BadRequest("Incorrect password".to_string())
 }

@@ -7,6 +7,7 @@ mod app;
 mod middleware;
 mod utility;
 mod message;
+mod repository;
 // use entities::{ prelude::*, * };
 
 #[actix_web::main]
