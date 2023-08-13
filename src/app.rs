@@ -3,7 +3,7 @@ use std::io::prelude::*;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
-use sea_orm::{DatabaseConnection, Database, ConnectOptions};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
 use crate::repository::auth_repository::AuthRepository;
 use crate::repository::contact_repository::ContactRepository;
@@ -20,7 +20,7 @@ pub struct AppState {
     pub contact_repository: ContactRepository,
     pub auth_repository: AuthRepository,
     pub user_repository: UserRepository,
-    pub transmitter: Sender<String>
+    pub transmitter: Sender<String>,
 }
 
 impl AppState {
@@ -41,7 +41,7 @@ impl AppState {
         let auth_repository = AuthRepository::new(db.clone());
         let user_repository = UserRepository::new(db.clone());
         let (tx, rx) = channel::<String>();
-        thread::spawn(move || { 
+        thread::spawn(move || {
             while let Ok(msg) = rx.recv() {
                 log::info!("Message: {}", msg);
             }
@@ -55,14 +55,16 @@ impl AppState {
             contact_repository,
             auth_repository,
             user_repository,
-            transmitter: tx
+            transmitter: tx,
         }
     }
 
     pub fn read_empty_profile() -> Vec<u8> {
         let mut buffer = Vec::<u8>::new();
-        let mut f = File::open("src/assets/empty-profile.jpg").expect("Empty profile image missing");
-        f.read_to_end(&mut buffer).expect("Issue when reading file error");
+        let mut f =
+            File::open("src/assets/empty-profile.jpg").expect("Empty profile image missing");
+        f.read_to_end(&mut buffer)
+            .expect("Issue when reading file error");
         return buffer;
     }
 }

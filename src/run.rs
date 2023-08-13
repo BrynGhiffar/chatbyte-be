@@ -1,19 +1,17 @@
-use actix_web::{HttpServer, middleware::Logger, App, web};
-use actix_cors::Cors;
 use crate::app::AppState;
+use crate::routes::auth_route::auth_config;
 use crate::routes::contact_route::contact_config;
 use crate::routes::healthcheck_route::healthcheck;
-use crate::routes::auth_route::auth_config;
 use crate::routes::message_route::message_config;
 use crate::routes::user_route::user_config;
+use actix_cors::Cors;
+use actix_web::{middleware::Logger, web, App, HttpServer};
 
 pub async fn run() -> std::io::Result<()> {
-
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     let state = AppState::default().await;
 
     let server = HttpServer::new(move || {
-
         let logger = Logger::default();
         let cors = Cors::permissive();
         App::new()
@@ -29,11 +27,7 @@ pub async fn run() -> std::io::Result<()> {
 
     let port = 8080;
     log::info!("Server will be running on port {port}");
-    server
-        .workers(2)
-        .bind(("0.0.0.0", port))?
-        .run()
-        .await?;
+    server.workers(2).bind(("0.0.0.0", port))?.run().await?;
 
     Ok(())
 }

@@ -1,12 +1,12 @@
-use sea_orm::{EntityTrait, FromQueryResult, QuerySelect, QueryFilter, ColumnTrait, DatabaseConnection, DbErr};
-use serde::Serialize;
 use crate::entities::user;
-
-
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
+};
+use serde::Serialize;
 
 #[derive(Clone)]
 pub struct ContactRepository {
-    conn: DatabaseConnection
+    conn: DatabaseConnection,
 }
 
 impl ContactRepository {

@@ -1,10 +1,13 @@
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryFilter, ColumnTrait, ActiveValue, ActiveModelTrait, ConnectionTrait, Statement, DatabaseBackend};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DatabaseBackend,
+    DatabaseConnection, DbErr, EntityTrait, QueryFilter, Statement,
+};
 
 use crate::entities::user;
 
 #[derive(Clone)]
 pub struct AuthRepository {
-    conn: DatabaseConnection
+    conn: DatabaseConnection,
 }
 
 impl AuthRepository {
@@ -15,7 +18,8 @@ impl AuthRepository {
     pub async fn find_user_by_email(&self, email: String) -> Result<Option<user::Model>, DbErr> {
         let tuser = user::Entity::find()
             .filter(user::Column::Email.eq(email.clone()))
-            .one(&self.conn).await?;
+            .one(&self.conn)
+            .await?;
         Ok(tuser)
     }
 
@@ -44,8 +48,9 @@ impl AuthRepository {
                     UPDATE public.user SET password = crypt($1, gen_salt('bf', 5)) where id = $2
                 "#, [password.into(), uid.into()]))
             .await.ok() else { return false; };
-        if exec_res.rows_affected() == 0 { return false; };
+        if exec_res.rows_affected() == 0 {
+            return false;
+        };
         return true;
     }
-
 }

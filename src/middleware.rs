@@ -1,13 +1,21 @@
-use std::{collections::BTreeMap, future::{Ready, ready}, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    collections::BTreeMap,
+    future::{ready, Ready},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
-use actix_web::{dev::{Transform, ServiceRequest, Service, ServiceResponse, self}, HttpResponse, body::EitherBody, http::header::{HeaderValue, HeaderName}, HttpRequest};
 use actix_web::Error;
+use actix_web::{
+    body::EitherBody,
+    dev::{self, Service, ServiceRequest, ServiceResponse, Transform},
+    http::header::{HeaderName, HeaderValue},
+    HttpRequest, HttpResponse,
+};
 use futures_util::future::LocalBoxFuture;
-use hmac::{ Hmac, Mac };
+use hmac::{Hmac, Mac};
 use jwt::VerifyWithKey;
 use serde_json::json;
 use sha2::Sha256;
-
 
 pub fn verify_token(token: String) -> Result<i32, String> {
     let token = token.trim_start_matches("Bearer ");
@@ -17,7 +25,7 @@ pub fn verify_token(token: String) -> Result<i32, String> {
     let Some(key): Option<Hmac<Sha256>> = Hmac::new_from_slice(secret.as_bytes()).ok() else {
         return Err("Error creating secret key hmac".to_string());
     };
-    
+
     let Some(claims): Option<BTreeMap<String, u64>> = token.verify_with_key(&key).ok() else {
         return Err("Error decoding token payload".to_string());
     };
@@ -47,20 +55,24 @@ pub fn verify_token(token: String) -> Result<i32, String> {
 }
 
 pub fn get_uid_from_header(req: HttpRequest) -> Option<i32> {
-    let uid = req.headers().get("uid")
-        .map(|v| v.to_str().ok()).flatten()
+    let uid = req
+        .headers()
+        .get("uid")
+        .map(|v| v.to_str().ok())
+        .flatten()
         .map(|s| s.to_string())
-        .map(|s| s.parse::<i32>().ok()).flatten();
+        .map(|s| s.parse::<i32>().ok())
+        .flatten();
     uid
 }
 
 pub struct VerifyToken;
 
-impl<S, B> Transform<S, ServiceRequest> for VerifyToken 
+impl<S, B> Transform<S, ServiceRequest> for VerifyToken
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
-    B: 'static
+    B: 'static,
 {
     type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
@@ -74,14 +86,14 @@ where
 }
 
 pub struct VerifyTokenMiddleWare<S> {
-    service: S
+    service: S,
 }
 
-impl<S, B> Service<ServiceRequest> for VerifyTokenMiddleWare<S> 
+impl<S, B> Service<ServiceRequest> for VerifyTokenMiddleWare<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
-    B: 'static
+    B: 'static,
 {
     type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
@@ -92,11 +104,13 @@ where
     fn call(&self, mut req: ServiceRequest) -> Self::Future {
         let bad_request = |req: ServiceRequest, message: String| -> Self::Future {
             let (req, _pl) = req.into_parts();
-            let res = HttpResponse::BadRequest().json(json!({
-                "success": false,
-                "message": message
-            })).map_into_right_body();
-            return Box::pin(async { Ok(ServiceResponse::new(req, res))});
+            let res = HttpResponse::BadRequest()
+                .json(json!({
+                    "success": false,
+                    "message": message
+                }))
+                .map_into_right_body();
+            return Box::pin(async { Ok(ServiceResponse::new(req, res)) });
         };
         // println!("Called");
         let headers = req.headers_mut();
@@ -109,7 +123,7 @@ where
 
         let uid = match verify_token(token.to_string()) {
             Ok(uid) => uid,
-            Err(msg) => return bad_request(req, msg)
+            Err(msg) => return bad_request(req, msg),
         };
         let uid = uid.to_string();
         let Ok(uid) = HeaderValue::from_str(&uid) else {
@@ -118,9 +132,6 @@ where
         headers.append(HeaderName::from_static("uid"), uid);
 
         let fut = self.service.call(req);
-        Box::pin(async move {
-            fut.await.map(ServiceResponse::map_into_left_body)
-        })
+        Box::pin(async move { fut.await.map(ServiceResponse::map_into_left_body) })
     }
-
 }

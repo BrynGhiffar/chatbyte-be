@@ -1,50 +1,61 @@
 use chrono::NaiveDateTime;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ColumnTrait, QueryFilter, QueryOrder, sea_query::Expr, FromQueryResult, Statement, DbBackend};
+use sea_orm::{
+    sea_query::Expr, ColumnTrait, DatabaseConnection, DbBackend, DbErr, EntityTrait,
+    FromQueryResult, QueryFilter, QueryOrder, Statement,
+};
 
 use crate::entities::message;
 
 #[derive(Clone)]
 pub struct MessageRepository {
-    conn: DatabaseConnection
+    conn: DatabaseConnection,
 }
 
 impl MessageRepository {
-
     pub fn new(conn: DatabaseConnection) -> Self {
         MessageRepository { conn }
     }
 
-    pub async fn get_message_between_users(&self, user1_uid: i32, user2_uid: i32) -> Result<Vec<message::Model>, DbErr> {
+    pub async fn get_message_between_users(
+        &self,
+        user1_uid: i32,
+        user2_uid: i32,
+    ) -> Result<Vec<message::Model>, DbErr> {
         let messages = message::Entity::find()
             .filter(
-                message::Column::ReceiverId.eq(user1_uid)
+                message::Column::ReceiverId
+                    .eq(user1_uid)
                     .and(message::Column::SenderId.eq(user2_uid))
-                    .or(
-                        message::Column::ReceiverId.eq(user2_uid)
-                        .and(message::Column::SenderId.eq(user1_uid))
-                    )
+                    .or(message::Column::ReceiverId
+                        .eq(user2_uid)
+                        .and(message::Column::SenderId.eq(user1_uid))),
             )
             .order_by_asc(message::Column::SentAt)
             .all(&self.conn)
-            .await?
-            ;
+            .await?;
         Ok(messages)
     }
 
     pub async fn update_message_read(&self, to_user: i32, from_user: i32) -> Result<(), DbErr> {
         message::Entity::update_many()
             .col_expr(message::Column::Read, Expr::value(true))
-            .filter(message::Column::ReceiverId.eq(to_user).and(message::Column::SenderId.eq(from_user)))
+            .filter(
+                message::Column::ReceiverId
+                    .eq(to_user)
+                    .and(message::Column::SenderId.eq(from_user)),
+            )
             .exec(&self.conn)
             .await?;
         Ok(())
     }
 
-    pub async fn get_recent_messages(&self, user_id: i32) -> Result<Vec<ConversationRecentMessages>, DbErr> {
-        let res = ConversationRecentMessages::find_by_statement(
-            Statement::from_sql_and_values(
-                DbBackend::Postgres, 
-                r#"
+    pub async fn get_recent_messages(
+        &self,
+        user_id: i32,
+    ) -> Result<Vec<ConversationRecentMessages>, DbErr> {
+        let res = ConversationRecentMessages::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"
                     SELECT
                         unread_message_content.id,
                         CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as contact_id,
@@ -60,11 +71,11 @@ impl MessageRepository {
                         END
                     WHERE $1 in (sender_id, receiver_id)
                     ;
-                    "#, 
-                [user_id.into()]
-            ))
-            .all(&self.conn)
-            .await?;
+                    "#,
+            [user_id.into()],
+        ))
+        .all(&self.conn)
+        .await?;
         Ok(res)
     }
 }
@@ -79,6 +90,5 @@ pub struct ConversationRecentMessages {
     pub contact_id: i32,
     pub last_message: String,
     pub unread_count: i64,
-    pub username: String
+    pub username: String,
 }
-

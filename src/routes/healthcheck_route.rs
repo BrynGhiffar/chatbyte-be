@@ -1,4 +1,4 @@
-use actix_web::{Responder, web::Data};
+use actix_web::{web::Data, Responder};
 
 use crate::app::AppState;
 

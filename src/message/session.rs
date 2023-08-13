@@ -1,37 +1,32 @@
-use actix::{prelude::*, fut::wrap_future};
-// use actix_broker::BrokerIssue;
+use actix::{fut::wrap_future, prelude::*};
 use actix_web_actors::ws::{self, CloseReason};
 
-use crate::{message::{message::IncomingSessionMessage, server::WsChatServer}, middleware::verify_token};
+use crate::{
+    message::{message::IncomingSessionMessage, server::WsChatServer},
+    middleware::verify_token,
+};
 
-use super::message::{UserConnects, UserDisconnects, IncomingServerMessage, OutgoingServerMessage};
-
-
+use super::message::{IncomingServerMessage, OutgoingServerMessage, UserConnects, UserDisconnects};
 
 pub struct WsChatSession {
     token: String,
 }
 
 impl WsChatSession {
-
     pub fn new(token: String) -> Self {
         Self { token }
     }
-
 
     pub fn user_connects(&mut self, ctx: &mut ws::WebsocketContext<Self>) {
         let addr = ctx.address();
         let res = verify_token(self.token.clone());
         let Ok(uid) = res else { ctx.close(None); return; };
         log::info!("User '{}' is online", uid);
-        let user_connect_msg = UserConnects {
-            user_id: uid,
-            addr
-        };
+        let user_connect_msg = UserConnects { user_id: uid, addr };
         WsChatServer::from_registry()
             .send(user_connect_msg)
             .into_actor(self)
-            .then(|_,_,_| fut::ready(()))
+            .then(|_, _, _| fut::ready(()))
             .wait(ctx);
     }
 
@@ -39,13 +34,11 @@ impl WsChatSession {
         let res = verify_token(self.token.clone());
         let Ok(uid) = res else { ctx.close(None); return; };
         log::info!("User '{}' is disconnecting", uid);
-        let user_disconnect_msg = UserDisconnects {
-            user_id: uid,
-        };
+        let user_disconnect_msg = UserDisconnects { user_id: uid };
         WsChatServer::from_registry()
             .send(user_disconnect_msg)
             .into_actor(self)
-            .then(|_,_,_| fut::ready(()))
+            .then(|_, _, _| fut::ready(()))
             .wait(ctx);
     }
 
@@ -56,7 +49,7 @@ impl WsChatSession {
         let msg = IncomingServerMessage {
             sender_uid,
             receiver_uid: msg.receiver_uid,
-            content: msg.content
+            content: msg.content,
         };
         // WsChatServer::from_registry().do_send(msg);
         let fut = async move {
@@ -64,7 +57,7 @@ impl WsChatSession {
             if let Err(err) = res {
                 match err {
                     MailboxError::Closed => log::info!("Mailbox error occurred"),
-                    MailboxError::Timeout => log::info!("Mailbox error timeout occurred")
+                    MailboxError::Timeout => log::info!("Mailbox error timeout occurred"),
                 }
             }
         };
@@ -111,9 +104,8 @@ impl Handler<OutgoingServerMessage> for WsChatSession {
 }
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
-
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        let Ok(msg) = msg else { 
+        let Ok(msg) = msg else {
             ctx.stop();
             return;
         };

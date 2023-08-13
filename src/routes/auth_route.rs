@@ -1,11 +1,22 @@
-use std::{collections::BTreeMap, time::{SystemTime, UNIX_EPOCH, Duration}};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
-use actix_web::{ Either, web::{Json, Form, ServiceConfig, self}, HttpRequest};
-use hmac::{ Hmac, Mac };
-use sha2::Sha256;
-use jwt::SignWithKey;
-use crate::{req_model::auth_req_model::LoginForm, app::AppState, utility:: ApiResult, middleware::{get_uid_from_header, VerifyToken}};
 use crate::utility::{ApiError, ApiSuccess};
+use crate::{
+    app::AppState,
+    middleware::{get_uid_from_header, VerifyToken},
+    req_model::auth_req_model::LoginForm,
+    utility::ApiResult,
+};
+use actix_web::{
+    web::{self, Form, Json, ServiceConfig},
+    Either, HttpRequest,
+};
+use hmac::{Hmac, Mac};
+use jwt::SignWithKey;
+use sha2::Sha256;
 
 use ApiError::*;
 use ApiSuccess::*;
@@ -17,14 +28,17 @@ pub fn auth_config(cfg: &mut ServiceConfig) {
 
 async fn login(
     state: web::Data<AppState>,
-    body: Either<Json<LoginForm>, Form<LoginForm>>
+    body: Either<Json<LoginForm>, Form<LoginForm>>,
 ) -> ApiResult<String> {
-
     let LoginForm { email, password } = body.into_inner();
     let state = state.into_inner();
-    let tuser = state.auth_repository.find_user_by_email(email.clone()).await?
+    let tuser = state
+        .auth_repository
+        .find_user_by_email(email.clone())
+        .await?
         .ok_or(email_not_found(email.clone()))?;
-    let valid = bcrypt::verify(&password, &tuser.password).map_err(|e| ServerError(e.to_string()))?;
+    let valid =
+        bcrypt::verify(&password, &tuser.password).map_err(|e| ServerError(e.to_string()))?;
     if !valid {
         return Err(incorrect_password());
     }
@@ -42,11 +56,9 @@ async fn login(
     return Ok(Success(payload));
 }
 
-async fn valid_token(
-    req: HttpRequest 
-) -> ApiResult<&'static str> {
-   let _ = get_uid_from_header(req).expect("user id is missing from header");
-   return Ok(Success("Token is valid"));
+async fn valid_token(req: HttpRequest) -> ApiResult<&'static str> {
+    let _ = get_uid_from_header(req).expect("user id is missing from header");
+    return Ok(Success("Token is valid"));
 }
 
 pub fn email_not_found(email: String) -> ApiError {

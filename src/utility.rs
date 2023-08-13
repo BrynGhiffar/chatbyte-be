@@ -1,8 +1,8 @@
-use std::fmt::Display;
 use std::fmt::Debug;
+use std::fmt::Display;
 
 use actix_web::Responder;
-use actix_web::{HttpResponse, ResponseError, body::BoxBody};
+use actix_web::{body::BoxBody, HttpResponse, ResponseError};
 use sea_orm::DbErr;
 use serde::Serialize;
 use serde_json::json;
@@ -28,12 +28,10 @@ pub fn success<T: Serialize>(payload: T) -> HttpResponse {
     }))
 }
 
-
-
 #[derive(Debug)]
 pub enum ApiError {
     ServerError(String),
-    BadRequest(String)
+    BadRequest(String),
 }
 
 impl Display for ApiError {
@@ -41,7 +39,7 @@ impl Display for ApiError {
         use ApiError::*;
         match self {
             BadRequest(e) => writeln!(f, "{}", e),
-            ServerError(e) => writeln!(f, "{}", e)
+            ServerError(e) => writeln!(f, "{}", e),
         }
     }
 }
@@ -57,20 +55,20 @@ impl ResponseError for ApiError {
     fn error_response(&self) -> HttpResponse<BoxBody> {
         match self {
             Self::BadRequest(message) => bad_request(message),
-            Self::ServerError(message) => server_error(message)
+            Self::ServerError(message) => server_error(message),
         }
     }
 }
 
 pub enum ApiSuccess<T: Serialize> {
-    Success(T)
+    Success(T),
 }
 
 impl<T: Serialize> Responder for ApiSuccess<T> {
     type Body = BoxBody;
     fn respond_to(self, _: &actix_web::HttpRequest) -> HttpResponse<Self::Body> {
         match self {
-            Self::Success(payload) => success(payload)
+            Self::Success(payload) => success(payload),
         }
     }
 }

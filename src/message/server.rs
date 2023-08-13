@@ -1,13 +1,16 @@
-use actix::{prelude::*, fut::wrap_future};
-use chrono::{ Local, offset::TimeZone };
+use actix::{fut::wrap_future, prelude::*};
+use chrono::{offset::TimeZone, Local};
 // use actix_broker::BrokerSubscribe;
-use sea_orm::{Database, DatabaseConnection, ActiveModelTrait};
+use sea_orm::{ActiveModelTrait, Database, DatabaseConnection};
 use std::collections::HashMap;
 
 use crate::entities::message;
 
 use super::{
-    message::{ConnectDatabase, UserConnects, UserDisconnects, IncomingServerMessage, OutgoingServerMessage},
+    message::{
+        ConnectDatabase, IncomingServerMessage, OutgoingServerMessage, UserConnects,
+        UserDisconnects,
+    },
     session::WsChatSession,
 };
 
@@ -28,12 +31,12 @@ impl Default for WsChatServer {
 
 impl WsChatServer {
     fn send_message(
-        &mut self, 
-        recv: i32, 
-        msg: OutgoingServerMessage, 
-        ctx: &mut <Self as Actor>::Context
+        &mut self,
+        recv: i32,
+        msg: OutgoingServerMessage,
+        ctx: &mut <Self as Actor>::Context,
     ) {
-        if let Some(receiver_addr) = self.clients.get(&recv) { 
+        if let Some(receiver_addr) = self.clients.get(&recv) {
             let receiver_addr = receiver_addr.clone();
             let msg = msg.clone();
             let fut = async move {
@@ -41,7 +44,7 @@ impl WsChatServer {
                 if let Err(err) = res {
                     match err {
                         MailboxError::Closed => log::info!("Mailbox error closed occurred"),
-                        MailboxError::Timeout => log::info!("Mailbox error timeout occurred")
+                        MailboxError::Timeout => log::info!("Mailbox error timeout occurred"),
                     }
                 };
             };
@@ -98,10 +101,10 @@ impl Handler<UserDisconnects> for WsChatServer {
 impl Handler<IncomingServerMessage> for WsChatServer {
     type Result = ();
     fn handle(&mut self, msg: IncomingServerMessage, ctx: &mut Self::Context) -> Self::Result {
-        let IncomingServerMessage { 
-            sender_uid, 
-            receiver_uid, 
-            content 
+        let IncomingServerMessage {
+            sender_uid,
+            receiver_uid,
+            content,
         } = msg;
 
         let Some(db) = self.db.clone() else { return; };
@@ -112,9 +115,7 @@ impl Handler<IncomingServerMessage> for WsChatServer {
             sent_at: sea_orm::ActiveValue::Set(Local::now().naive_local()),
             ..Default::default()
         };
-        let fut = async move {
-            new_message.insert(&db).await.ok()
-        };
+        let fut = async move { new_message.insert(&db).await.ok() };
         let fut = wrap_future::<_, Self>(fut).then(move |msg, act, ctx| {
             let Some(msg) = msg else { return fut::ready(()); };
             let sent_at = Local.from_local_datetime(&msg.sent_at).unwrap();
@@ -124,7 +125,7 @@ impl Handler<IncomingServerMessage> for WsChatServer {
                 receiver_uid,
                 is_user: true,
                 content,
-                sent_at: sent_at.format("%H:%M").to_string()
+                sent_at: sent_at.format("%H:%M").to_string(),
             };
             let mut recv_msg = msg.clone();
             recv_msg.is_user = false;

@@ -1,13 +1,13 @@
-mod run;
-mod routes;
 mod req_model;
+mod routes;
+mod run;
 use actix_web;
-mod entities;
 mod app;
-mod middleware;
-mod utility;
+mod entities;
 mod message;
+mod middleware;
 mod repository;
+mod utility;
 // use entities::{ prelude::*, * };
 
 #[actix_web::main]
