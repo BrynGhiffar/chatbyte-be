@@ -132,7 +132,7 @@ pub async fn get_avatar(
     let empty_profile = state.empty_profile.clone();
     let uid = uid.into_inner();
     let Ok(Some(avatar)) = user_avatar::Entity::find().filter(user_avatar::Column::UserId.eq(uid)).one(db).await else {
-        return HttpResponse::InternalServerError().body(empty_profile);
+        return HttpResponse::Ok().body(empty_profile);
     };
     return HttpResponse::Ok().body(avatar.avatar_image);
 }

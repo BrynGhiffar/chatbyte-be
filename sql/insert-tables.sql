@@ -8,18 +8,18 @@ DROP TABLE IF EXISTS public.message;
 DROP TABLE IF EXISTS public.user;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE public.blog (
-    id text PRIMARY KEY,
-    author_id integer NOT NULL,
-    title text NOT NULL,
-    content text NOT NULL,
-    created_at timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    summary text NOT NULL,
-    updated_at timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    thumbnail text
-);
+-- CREATE TABLE public.blog (
+--     id text PRIMARY KEY,
+--     author_id integer NOT NULL,
+--     title text NOT NULL,
+--     content text NOT NULL,
+--     created_at timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+--     summary text NOT NULL,
+--     updated_at timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+--     thumbnail text
+-- );
 
-ALTER TABLE public.blog OWNER TO postgres;
+-- ALTER TABLE public.blog OWNER TO postgres;
 
 CREATE TABLE public.message (
     id integer PRIMARY KEY,
@@ -97,8 +97,8 @@ ALTER TABLE ONLY public.user ALTER COLUMN id SET DEFAULT nextval('public.user_id
 CREATE UNIQUE INDEX user_email_key ON public.user USING btree (email);
 CREATE UNIQUE INDEX user_username_key ON public.user USING btree (username);
 
-ALTER TABLE ONLY public.blog
-    ADD CONSTRAINT blog_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.user(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+-- ALTER TABLE ONLY public.blog
+--     ADD CONSTRAINT blog_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.user(id) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 ALTER TABLE ONLY public.message
     ADD CONSTRAINT message_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES public.user(id) ON UPDATE CASCADE ON DELETE RESTRICT;

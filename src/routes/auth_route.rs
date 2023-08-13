@@ -1,39 +1,38 @@
 use std::{collections::BTreeMap, time::{SystemTime, UNIX_EPOCH, Duration}};
 
-use actix_web::{Responder, Either, web::{Json, Form, ServiceConfig, self}, HttpResponse};
+use actix_web::{ Either, web::{Json, Form, ServiceConfig, self}, HttpRequest};
 use sea_orm::{EntityTrait, QueryFilter, ColumnTrait };
 use hmac::{ Hmac, Mac };
 use sha2::Sha256;
 use jwt::SignWithKey;
-use crate::{req_model::auth_req_model::LoginForm, res_model::auth_res_model::LoginResponse, entities::user, app::AppState};
+use crate::{req_model::auth_req_model::LoginForm, entities::user, app::AppState, utility:: ApiResult, middleware::{get_uid_from_header, VerifyToken}};
+use crate::utility::{ApiError, ApiSuccess};
 
-fn fail_ise(msg: &str) -> HttpResponse {
-    return HttpResponse::InternalServerError()
-        .json(LoginResponse::failed(msg.to_string()));
+use ApiError::*;
+use ApiSuccess::*;
+
+pub fn email_not_found(email: String) -> ApiError {
+    BadRequest(format!("User with email {:?} is not found", email.clone()))
 }
 
-fn fail_br(msg: &str) -> HttpResponse {
-    return HttpResponse::BadRequest()
-        .json(LoginResponse::failed(msg.to_string()));
+pub fn incorrect_password() -> ApiError {
+    BadRequest("Incorrect password".to_string())
 }
 
 async fn login(
     state: web::Data<AppState>,
     body: Either<Json<LoginForm>, Form<LoginForm>>
-) -> impl Responder {
+) -> ApiResult<String> {
+
     let LoginForm { email, password } = body.into_inner();
     let state = state.into_inner();
-    let Ok(res) = user::Entity::find().filter(user::Column::Email.eq(email.clone())).one(&state.db).await else {
-        return fail_ise("Error when fetching users");
-    };
-    let Some(tuser) = res else {
-        return fail_br(format!("User with email {:?} is not found", email.clone()).as_str()); 
-    };
-    let Ok(valid) = bcrypt::verify(&password, &tuser.password) else {
-        return fail_ise("Failed verifying password");
-    };
+    let tuser = user::Entity::find()
+        .filter(user::Column::Email.eq(email.clone()))
+        .one(&state.db).await?
+        .ok_or(email_not_found(email.clone()))?;
+    let valid = bcrypt::verify(&password, &tuser.password).map_err(|e| ServerError(e.to_string()))?;
     if !valid {
-        return fail_br("Incorrect password");
+        return Err(incorrect_password());
     }
     let secret = state.env_jwt_secret.clone();
     let expiration = state.env_jwt_secret_mins.clone();
@@ -46,9 +45,17 @@ async fn login(
     claims.insert("uid".to_string(), u64::try_from(tuser.id).ok().unwrap());
     claims.insert("expiration".to_string(), timestamp_secs);
     let payload = claims.sign_with_key(&key).unwrap();
-    return HttpResponse::Ok().json(LoginResponse::success(payload));
+    return Ok(Success(payload));
+}
+
+async fn valid_token(
+    req: HttpRequest 
+) -> ApiResult<&'static str> {
+   let _ = get_uid_from_header(req).expect("user id is missing from header");
+   return Ok(Success("Token is valid"));
 }
 
 pub fn auth_config(cfg: &mut ServiceConfig) {
     cfg.route("/login", web::post().to(login));
+    cfg.route("/valid-token", web::get().to(valid_token).wrap(VerifyToken));
 }

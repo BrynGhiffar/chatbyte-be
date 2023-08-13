@@ -1,6 +1,6 @@
 use actix::{prelude::*, fut::wrap_future};
 // use actix_broker::BrokerIssue;
-use actix_web_actors::ws;
+use actix_web_actors::ws::{self, CloseReason};
 
 use crate::{message::{message::IncomingSessionMessage, server::WsChatServer}, middleware::verify_token};
 
@@ -72,19 +72,17 @@ impl WsChatSession {
         ctx.spawn(fut);
     }
 
-    // pub fn send_message(&self, msg: &str) {
-    //     let content = format!(
-    //         "{}: {msg}",
-    //         "anon"
-    //     );
+    fn on_session_receive_message(&self, text: String, ctx: &mut ws::WebsocketContext<Self>) {
+        let Ok(msg) = serde_json::from_str::<IncomingSessionMessage>(&text) else {
+            return;
+        };
+        self.send_message(msg, ctx);
+    }
 
-    //     let msg = SendMessage {
-    //         token: self.token,
-    //         content
-    //     };
-
-    //     self.issue_system_async(msg);
-    // }
+    fn on_session_close(&self, reason: Option<CloseReason>, ctx: &mut ws::WebsocketContext<Self>) {
+        ctx.close(reason);
+        ctx.stop();
+    }
 }
 
 impl Actor for WsChatSession {
@@ -113,25 +111,15 @@ impl Handler<OutgoingServerMessage> for WsChatSession {
 }
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
+
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         let Ok(msg) = msg else { 
             ctx.stop();
             return;
         };
         match msg {
-            ws::Message::Text(text) => {
-                let text = text.to_string();
-                let Ok(msg) = serde_json::from_str::<IncomingSessionMessage>(&text) else {
-                    return;
-                };
-                // ctx.spawn(fut);
-                self.send_message(msg, ctx);
-            }
-            ws::Message::Close(reason) => {
-                ctx.close(reason);
-                ctx.stop();
-                return;
-            },
+            ws::Message::Text(text) => self.on_session_receive_message(text.to_string(), ctx),
+            ws::Message::Close(reason) => self.on_session_close(reason, ctx),
             _ => {}
         };
     }

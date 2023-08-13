@@ -3,12 +3,12 @@ use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder, sea_query::Expr};
 
-use crate::{middleware::{VerifyToken, get_uid_from_header}, app::AppState, entities::message, utility::{bad_request, server_error, success}, message::session::WsChatSession};
+use crate::{middleware::{VerifyToken, get_uid_from_header}, app::AppState, entities::message, utility::{ApiResult, ApiSuccess::*}, message::session::WsChatSession};
 
 #[derive(Deserialize)]
 pub struct MessageReceiver {
     #[serde(rename = "receiverUid")]
-    pub receiver_uid: String
+    pub receiver_uid: i32
 }
 
 #[derive(Serialize)]
@@ -28,17 +28,10 @@ pub async fn get_messages(
     query: web::Query<MessageReceiver>,
     state: web::Data<AppState>,
     req: HttpRequest
-) -> impl Responder {
+) -> ApiResult<Vec<ClientMessage>> {
     let db = &state.db;
-    let receiver_uid = query.receiver_uid.clone();
-    let Some(receiver_uid) = receiver_uid.parse::<i32>().ok() else {
-        return bad_request("invalid receiver uid");
-    };
-    let uid = req.headers().get("uid")
-        .map(|v| v.to_str().ok()).flatten()
-        .map(|s| s.to_string())
-        .map(|s| s.parse::<i32>().ok()).flatten().unwrap();
-    log::info!("uid: {}", uid);
+    let receiver_uid = query.receiver_uid;
+    let uid = get_uid_from_header(req).unwrap();
     let messages = message::Entity::find()
         .filter(
             message::Column::ReceiverId.eq(uid)
@@ -50,11 +43,8 @@ pub async fn get_messages(
         )
         .order_by_asc(message::Column::SentAt)
         .all(db)
-        .await
+        .await?
         ;
-    let Ok(messages) = messages else {
-        return server_error("Database error occurred");
-    };
     let messages = messages.into_iter().map(|m| ClientMessage {
         id: m.id,
         receiver_id: m.receiver_id,
@@ -63,28 +53,23 @@ pub async fn get_messages(
         content: m.content,
         time: m.sent_at.format("%H:%M").to_string()
     }).collect::<Vec<_>>();
-    return success(messages);
+    Ok(Success(messages))
 }
 
 pub async fn update_read_messages(
     query: web::Query<MessageReceiver>,
     state: web::Data<AppState>,
     req: HttpRequest
-) -> impl Responder{
-    let Some(receiver_uid) = query.into_inner().receiver_uid.parse::<i32>().ok() else {
-        return bad_request("invalid receiverUid");
-    };
+) -> ApiResult<&'static str> {
+    let receiver_uid = query.receiver_uid;
     let db = &state.db;
     let uid = get_uid_from_header(req).unwrap();
-    let res = message::Entity::update_many()
+    message::Entity::update_many()
         .col_expr(message::Column::Read, Expr::value(true))
         .filter(message::Column::ReceiverId.eq(uid).and(message::Column::SenderId.eq(receiver_uid)))
         .exec(db)
-        .await;
-    let Some(_) = res.ok() else {
-        return server_error("Database error occurred");
-    };
-    return success("Unread messages");
+        .await?;
+    return Ok(Success("Unread messages"));
 }
 
 #[derive(Deserialize)]
@@ -105,5 +90,4 @@ pub fn message_config(cfg: &mut ServiceConfig) {
     cfg.route("", get().to(get_messages).wrap(VerifyToken));
     cfg.route("/read", web::put().to(update_read_messages).wrap(VerifyToken));
     cfg.route("/ws", get().to(chat_websocket));
-    // cfg.service(web::)
 }

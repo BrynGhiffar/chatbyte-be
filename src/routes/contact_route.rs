@@ -1,16 +1,15 @@
 use actix_web::{
     web::{self, ServiceConfig},
-    Responder, HttpRequest,
+    HttpRequest,
 };
 use chrono::NaiveDateTime;
 use sea_orm::{EntityTrait, FromQueryResult, QuerySelect, QueryFilter, ColumnTrait, Statement, DbBackend};
 use serde::Serialize;
-use serde_json::json;
 
 use crate::{
     app::AppState,
     entities::user,
-    utility::{server_error, success, bad_request}, middleware::{VerifyToken, get_uid_from_header},
+    utility::{ApiResult, ApiSuccess}, middleware::{VerifyToken, get_uid_from_header},
 };
 
 #[derive(FromQueryResult, Serialize)]
@@ -20,7 +19,9 @@ struct Contact {
     username: String,
 }
 
-async fn get_contacts(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
+async fn get_contacts(req: HttpRequest, state: web::Data<AppState>) -> ApiResult<Vec<Contact>> {
+    use ApiSuccess::*;
+
     let db = &state.db;
     let uid = get_uid_from_header(req).unwrap();
     let contacts = user::Entity::find()
@@ -31,40 +32,60 @@ async fn get_contacts(req: HttpRequest, state: web::Data<AppState>) -> impl Resp
         .column(user::Column::Username)
         .into_model::<Contact>()
         .all(db)
-        .await;
-    let Some(contacts) = contacts.ok() else {
-        return server_error("A database error occurred");
-    };
+        .await?;
 
-    return success(contacts);
+    Ok(Success(contacts))
 }
 
 #[derive(FromQueryResult)]
 pub struct ConversationRecentMessages {
     pub id: i32,
     pub sent_at: NaiveDateTime,
-    pub sender_id: i32,
-    pub receiver_id: i32,
+    // pub sender_id: i32,
+    // pub receiver_id: i32,
+    pub contact_id: i32,
     pub last_message: String,
     pub unread_count: i64,
     pub username: String
 }
 
+#[derive(Serialize)]
+pub struct RecentConversation {
+    username: String,
+    sent_at: String,
+    contact_id: i32,
+    content: String,
+    unread_count: i64
+}
+
+impl From<&ConversationRecentMessages> for RecentConversation {
+    fn from(value: &ConversationRecentMessages) -> Self {
+        RecentConversation { 
+            username: value.username.clone(), 
+            sent_at: value.sent_at.format("%H:%M").to_string(), 
+            contact_id: value.contact_id, 
+            content: value.last_message.clone(), 
+            unread_count: value.unread_count 
+        } 
+    }
+}
+
 pub async fn recent_conversation(
     state: web::Data<AppState>,
     req: HttpRequest
-) -> impl Responder {
+) -> ApiResult<Vec<RecentConversation>> {
+    use ApiSuccess::*;
     let state = state.into_inner();
     let db = &state.db;
-    let Some(uid) = get_uid_from_header(req) else { return bad_request("token is missing") };
+    let uid = get_uid_from_header(req).unwrap();
     let res = ConversationRecentMessages::find_by_statement(
         Statement::from_sql_and_values(
             DbBackend::Postgres, 
             r#"
                 SELECT
                     unread_message_content.id,
-                    sender_id,
-                    receiver_id, sent_at, 
+                    CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as contact_id,
+                    sent_at, 
                     CASE WHEN receiver_id != $1 THEN 0 ELSE unread_count END,
                     last_message,
                     public.user.username
@@ -80,24 +101,12 @@ pub async fn recent_conversation(
             [uid.into()]
         ))
         .all(db)
-        .await;
+        .await?;
+    let recent_conversations = res.iter()
+        .map(|r| RecentConversation::from(r))
+        .collect::<Vec<_>>();
 
-    let Some(msg) = res.ok() else {
-        return server_error("Database error");
-    };
-    let msg = msg.iter().map(|m| {
-        let sent_at = m.sent_at.format("%H:%M").to_string();
-        let contact_id = if m.sender_id == uid { m.receiver_id } else { m.sender_id };
-        json!({
-            "username": m.username,
-            "sent_at": sent_at,
-            "contact_id": contact_id,
-            "content": m.last_message,
-            "unread_count": m.unread_count
-        })
-    }).collect::<Vec<_>>();
-
-    return success(msg);
+    Ok(Success(recent_conversations))
 }
 
 
