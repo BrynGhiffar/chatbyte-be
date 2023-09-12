@@ -2,7 +2,7 @@
 
 pub mod prelude;
 
-pub mod blog;
 pub mod message;
+pub mod session;
 pub mod user;
 pub mod user_avatar;

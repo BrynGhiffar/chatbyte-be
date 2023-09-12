@@ -1,15 +1,18 @@
-use crate::app::AppState;
+use crate::middleware::VerifyToken;
 use crate::routes::auth_route::auth_config;
 use crate::routes::contact_route::contact_config;
 use crate::routes::healthcheck_route::healthcheck;
 use crate::routes::message_route::message_config;
 use crate::routes::user_route::user_config;
+use crate::{app::AppState, routes::websocket_route::websocket};
 use actix_cors::Cors;
 use actix_web::{middleware::Logger, web, App, HttpServer};
+use tokio::{spawn, try_join};
 
 pub async fn run() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    let state = AppState::default().await;
+    let (state, ws_server) = AppState::default().await;
+    let ws_server = spawn(ws_server.run());
 
     let server = HttpServer::new(move || {
         let logger = Logger::default();
@@ -23,11 +26,18 @@ pub async fn run() -> std::io::Result<()> {
             .service(web::scope("/api/message").configure(message_config))
             .service(web::scope("/api/contacts").configure(contact_config))
             .service(web::scope("/api/user").configure(user_config))
+            .service(
+                web::resource("/api/ws")
+                    .route(web::get().to(websocket))
+                    .wrap(VerifyToken),
+            )
     });
 
     let port = 8080;
     log::info!("Server will be running on port {port}");
-    server.workers(2).bind(("0.0.0.0", port))?.run().await?;
+    let http_server = server.workers(2).bind(("0.0.0.0", port))?.run();
+
+    try_join!(http_server, async move { ws_server.await.unwrap() })?;
 
     Ok(())
 }

@@ -112,7 +112,6 @@ where
                 .map_into_right_body();
             return Box::pin(async { Ok(ServiceResponse::new(req, res)) });
         };
-        // println!("Called");
         let headers = req.headers_mut();
         let Some(token) = headers.get("Authorization") else {
             return bad_request(req, "Token is missing".to_string());

@@ -5,21 +5,9 @@ DROP VIEW IF EXISTS public.message_sender;
 DROP TABLE IF EXISTS public.user_avatar;
 DROP TABLE IF EXISTS public.blog;
 DROP TABLE IF EXISTS public.message;
+DROP TABLE IF EXISTS public.session;
 DROP TABLE IF EXISTS public.user;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- CREATE TABLE public.blog (
---     id text PRIMARY KEY,
---     author_id integer NOT NULL,
---     title text NOT NULL,
---     content text NOT NULL,
---     created_at timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
---     summary text NOT NULL,
---     updated_at timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
---     thumbnail text
--- );
-
--- ALTER TABLE public.blog OWNER TO postgres;
 
 CREATE TABLE public.message (
     id integer PRIMARY KEY,
@@ -97,9 +85,6 @@ ALTER TABLE ONLY public.user ALTER COLUMN id SET DEFAULT nextval('public.user_id
 CREATE UNIQUE INDEX user_email_key ON public.user USING btree (email);
 CREATE UNIQUE INDEX user_username_key ON public.user USING btree (username);
 
--- ALTER TABLE ONLY public.blog
---     ADD CONSTRAINT blog_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.user(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-
 ALTER TABLE ONLY public.message
     ADD CONSTRAINT message_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES public.user(id) ON UPDATE CASCADE ON DELETE RESTRICT;
 
@@ -122,7 +107,6 @@ CREATE VIEW last_message as
         min_sender, 
         max_sender 
     from message_sender
-    -- where read = false 
     group by min_sender, max_sender;
 
 CREATE VIEW unread_message_count as
@@ -140,6 +124,29 @@ CREATE VIEW unread_message_content as
     join last_message on message.id = last_message.last_msg_id
     left join unread_message_count on message.sender_id = unread_message_count.sender_id and message.receiver_id = unread_message_count.receiver_id
     ;
+
+CREATE TABLE public.session (
+    id integer PRIMARY KEY,
+    created_at timestamp(3) without time zone default CURRENT_TIMESTAMP NOT NULL,
+    last_active timestamp(3) without time zone default CURRENT_TIMESTAMP NOT NULL,
+    operating_system text CONSTRAINT os_chk CHECK (char_length(operating_system) >= 2),
+    agent text CONSTRAINT agent_chk CHECK (char_length(agent) >= 2),
+    user_id integer NOT NULL,
+    CONSTRAINT fk_session_user_id FOREIGN KEY (user_id) REFERENCES public.user(id)
+);
+
+CREATE SEQUENCE public.session_id_seq 
+    AS INTEGER
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+    ;
+
+ALTER TABLE public.session_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.session_id_seq OWNED by public.session.id;
+ALTER TABLE ONLY public.session ALTER COLUMN id SET DEFAULT nextval('public.session_id_seq'::regclass);
 
 -- Mock Users
 INSERT INTO public.user (username, email, password)

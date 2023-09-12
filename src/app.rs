@@ -1,14 +1,15 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::sync::mpsc::{channel, Sender};
-use std::thread;
 
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
 use crate::repository::auth_repository::AuthRepository;
 use crate::repository::contact_repository::ContactRepository;
 use crate::repository::message_repository::MessageRepository;
+use crate::repository::session_repository::SessionRepository;
 use crate::repository::user_repository::UserRepository;
+use crate::service::session::SessionFactory;
+use crate::service::ws_server::WsServer;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -20,11 +21,12 @@ pub struct AppState {
     pub contact_repository: ContactRepository,
     pub auth_repository: AuthRepository,
     pub user_repository: UserRepository,
-    pub transmitter: Sender<String>,
+    pub session_repository: SessionRepository,
+    pub session_factory: SessionFactory,
 }
 
 impl AppState {
-    pub async fn default() -> Self {
+    pub async fn default() -> (Self, WsServer) {
         let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is missing");
         let env_jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET is missing");
         let env_jwt_secret_mins = std::env::var("JWT_EXPIRATION_MINS")
@@ -40,13 +42,9 @@ impl AppState {
         let contact_repository = ContactRepository::new(db.clone());
         let auth_repository = AuthRepository::new(db.clone());
         let user_repository = UserRepository::new(db.clone());
-        let (tx, rx) = channel::<String>();
-        thread::spawn(move || {
-            while let Ok(msg) = rx.recv() {
-                log::info!("Message: {}", msg);
-            }
-        });
-        AppState {
+        let session_repository = SessionRepository::new(db.clone());
+        let (ws_server, session_factory) = WsServer::new(message_repository.clone());
+        let app_state = AppState {
             db,
             env_jwt_secret,
             env_jwt_secret_mins,
@@ -55,8 +53,10 @@ impl AppState {
             contact_repository,
             auth_repository,
             user_repository,
-            transmitter: tx,
-        }
+            session_factory,
+            session_repository
+        };
+        (app_state, ws_server)
     }
 
     pub fn read_empty_profile() -> Vec<u8> {

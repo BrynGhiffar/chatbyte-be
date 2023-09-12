@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
     app::AppState,
-    repository::entities::user,
     middleware::{get_uid_from_header, VerifyToken},
+    repository::entities::user,
     utility::{ApiError::*, ApiResult, ApiSuccess::*},
 };
 use actix_web::{

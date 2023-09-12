@@ -1,7 +1,7 @@
-use chrono::NaiveDateTime;
+use chrono::{Local, NaiveDateTime};
 use sea_orm::{
-    sea_query::Expr, ColumnTrait, DatabaseConnection, DbBackend, DbErr, EntityTrait,
-    FromQueryResult, QueryFilter, QueryOrder, Statement,
+    sea_query::Expr, ActiveModelTrait, ColumnTrait, DatabaseConnection, DbBackend, DbErr,
+    EntityTrait, FromQueryResult, QueryFilter, QueryOrder, Statement,
 };
 
 use crate::repository::entities::message;
@@ -76,6 +76,23 @@ impl MessageRepository {
         ))
         .all(&self.conn)
         .await?;
+        Ok(res)
+    }
+
+    pub async fn insert_message(
+        &self,
+        receiver_uid: i32,
+        sender_uid: i32,
+        content: String,
+    ) -> Result<message::Model, DbErr> {
+        let new_message = message::ActiveModel {
+            receiver_id: sea_orm::ActiveValue::Set(receiver_uid),
+            sender_id: sea_orm::ActiveValue::Set(sender_uid),
+            content: sea_orm::ActiveValue::Set(content.clone()),
+            sent_at: sea_orm::ActiveValue::Set(Local::now().naive_local()),
+            ..Default::default()
+        };
+        let res = new_message.insert(&self.conn).await?;
         Ok(res)
     }
 }

@@ -31,3 +31,6 @@ actix = "0.13.0"
 actix-broker = "0.4.3"
 rand = "0.8.5"
 futures = "0.3.28"
+tokio = { version = "1.32.0", features = ["sync", "macros", "time"] }
+actix-ws = "0.2.5"
+merge-streams = "0.1.2"

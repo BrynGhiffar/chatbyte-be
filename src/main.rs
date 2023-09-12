@@ -6,6 +6,7 @@ mod app;
 mod message;
 mod middleware;
 mod repository;
+mod service;
 mod utility;
 // use entities::{ prelude::*, * };
 

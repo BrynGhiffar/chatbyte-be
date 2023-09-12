@@ -12,8 +12,8 @@
 ## Sea orm
 generate entities from the database
 ```
-> sea-orm-cli generate entity -u postgresql://postgres:myblogdbpass48Y4N@db.muynfblecxqewykqdwwx.supabase.co:5432/postgres -o src/entities
-sea-orm-cli generate entity -u postgresql://postgres:postgres@localhost:5433/new_test -o src/entities
+> sea-orm-cli generate entity -u postgresql://postgres:myblogdbpass48Y4N@db.muynfblecxqewykqdwwx.supabase.co:5432/postgres -o src/repository/entities
+sea-orm-cli generate entity -u postgresql://postgres:postgres@localhost:5433/new_test -o src/repository/entities
 ```
 
 ## Building

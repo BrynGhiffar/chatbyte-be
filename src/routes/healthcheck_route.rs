@@ -1,9 +1,5 @@
-use actix_web::{web::Data, Responder};
+use actix_web::Responder;
 
-use crate::app::AppState;
-
-pub async fn healthcheck(state: Data<AppState>) -> impl Responder {
-    let tx = state.transmitter.clone();
-    tx.send("Health check".to_string()).unwrap();
+pub async fn healthcheck() -> impl Responder {
     "API is healthy"
 }
