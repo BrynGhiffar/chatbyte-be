@@ -53,4 +53,19 @@ impl AuthRepository {
         };
         return true;
     }
+
+    pub async fn create_user(&self, email: String, password: String) -> bool {
+        let Some(exec_res) = self.conn
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Postgres, r#"
+                INSERT INTO public.user (username, email, password)
+                VALUES ($1, $1, crypt($2, gen_salt('bf', 5)))
+                "#, [email.into(), password.into()]))
+            .await.ok() else { return false; };
+        if exec_res.rows_affected() == 0 {
+            return false;
+        };
+        return true;
+    }
+    
 }

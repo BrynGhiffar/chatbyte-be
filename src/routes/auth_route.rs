@@ -3,7 +3,8 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use crate::utility::{ApiError, ApiSuccess};
+use regex::Regex;
+use crate::{utility::{ApiError, ApiSuccess}, req_model::auth_req_model::RegisterForm};
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
@@ -23,6 +24,7 @@ use ApiSuccess::*;
 
 pub fn auth_config(cfg: &mut ServiceConfig) {
     cfg.route("/login", web::post().to(login));
+    cfg.route("/register", web::post().to(register));
     cfg.route("/valid-token", web::get().to(valid_token).wrap(VerifyToken));
 }
 
@@ -65,6 +67,36 @@ pub fn email_not_found(email: String) -> ApiError {
     BadRequest(format!("User with email {:?} is not found", email.clone()))
 }
 
+pub fn email_already_registered(email: String) -> ApiError {
+    BadRequest(format!("User with email {:?} is already registered", email.clone()))
+}
+
+pub fn invalid_email(email: String) -> ApiError {
+    BadRequest(format!("Email '{:?}' is invalid", email.clone()))
+}
+
 pub fn incorrect_password() -> ApiError {
     BadRequest("Incorrect password".to_string())
+}
+
+pub async fn register(
+    state: web::Data<AppState>,
+    body: Either<Json<RegisterForm>, Form<RegisterForm>>,
+) -> ApiResult<String> {
+    let RegisterForm { email, password } = body.into_inner();
+    let regex = Regex::new(r#"(?m)^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$"#).unwrap();
+    if !regex.is_match(&email) {
+        return Err(invalid_email(email));
+    }
+    let res = state.auth_repository.find_user_by_email(email.clone()).await;
+    let user = res.map_err(|e| e.to_string()).map_err(BadRequest)?;
+    if let Some(_) = user {
+        return Err(email_already_registered(email));
+    }
+
+    let success = state.auth_repository.create_user(email, password).await;
+    if !success {
+        return Err(ServerError("A database error occurred".to_string()))
+    }
+    return Ok(Success("Successfully registered".to_string()));
 }

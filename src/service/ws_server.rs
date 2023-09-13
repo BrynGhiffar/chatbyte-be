@@ -2,22 +2,28 @@ use std::{collections::HashMap, str::FromStr};
 
 use crate::{
     message::application::{AppMessage, AppRx, SessionMessage, SessionTx},
-    repository::message_repository::MessageRepository,
+    repository::{message_repository::MessageRepository, entities::message},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
 use super::session::SessionFactory;
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
-enum WsRequest {
+pub enum WsRequest {
     #[serde(rename = "SEND_MESSAGE")]
     SendMessage {
         #[serde(rename = "receiverUid")]
         receiver_uid: i32,
         message: String,
     },
+    #[serde(rename = "READ_MESSAGE")]
+    #[serde(rename_all = "camelCase")]
+    ReadMessage {
+        receiver_uid: i32,
+        sender_uid: i32
+    }
 }
 
 impl FromStr for WsRequest {
@@ -27,21 +33,33 @@ impl FromStr for WsRequest {
     }
 }
 
-#[derive(Serialize)]
+impl ToString for WsRequest {
+    fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum WsResponse {
     #[serde(rename = "MESSAGE_NOTIFICATION")]
+    #[serde(rename_all = "camelCase")]
     MessageNotification {
         id: i32,
-        #[serde(rename = "senderUid")]
         sender_uid: i32,
-        #[serde(rename = "receiverUid")]
         receiver_uid: i32,
         content: String,
-        #[serde(rename = "isUser")]
         is_user: bool,
-        #[serde(rename = "sentAt")]
         sent_at: String,
+        receiver_read: bool
+    },
+
+
+    #[serde(rename = "READ_NOTIFICATION")]
+    #[serde(rename_all = "camelCase")]
+    ReadNotification {
+        sender_uid: i32,
+        receiver_uid: i32
     },
 
     #[serde(rename = "ERROR_NOTIFICATION")]
@@ -82,37 +100,55 @@ impl WsServer {
         }
     }
 
+    fn send_session_message(&self, user_id: i32, message: String) {
+        let Some(sess_tx) = self.user_storage.get(&user_id) else { return; };
+        sess_tx
+            .send(SessionMessage::Message(message))
+            .unwrap();
+    }
+
+    fn send_session_error(&self, user_id: i32, message: String) {
+        let Some(sess_tx) = self.user_storage.get(&user_id) else { return; };
+        sess_tx
+            .send(SessionMessage::Message(WsResponse::ErrorNotification { message }.to_string()))
+            .unwrap();
+    }
+
+    fn send_new_message_notification(&self, user_id: i32, msg: message::Model) {
+
+        let message = WsResponse::MessageNotification {
+            id: msg.id,
+            sender_uid: msg.sender_id,
+            receiver_uid: msg.receiver_id,
+            is_user: user_id == msg.sender_id,
+            content: msg.content,
+            sent_at: msg.sent_at.format("%H:%M").to_string(),
+            receiver_read: msg.read
+        };
+        self.send_session_message(user_id, message.to_string());
+    }
+
+    fn handle_read_message(&self, receiver_uid: i32, sender_uid: i32) {
+        let message = WsResponse::ReadNotification { sender_uid, receiver_uid };
+        self.send_session_message(sender_uid, message.to_string());
+    }
+
     async fn handle_user_send_message(&self, sender_uid: i32, receiver_uid: i32, msg: String) {
         let res = self
             .message_repository
             .insert_message(receiver_uid, sender_uid, msg.clone())
             .await;
-        let Some(sess_tx) = self.user_storage.get(&receiver_uid) else { return; };
         let msg = match res {
             Ok(msg) => msg,
             Err(e) => {
-                sess_tx
-                    .send(SessionMessage::Message(
-                        WsResponse::ErrorNotification {
-                            message: e.to_string(),
-                        }
-                        .to_string(),
-                    ))
-                    .unwrap();
+                self.send_session_error(sender_uid, e.to_string());
                 return;
             }
         };
-        let res = WsResponse::MessageNotification {
-            id: msg.id,
-            sender_uid,
-            receiver_uid,
-            is_user: true,
-            content: msg.content,
-            sent_at: msg.sent_at.format("%H:%M").to_string(),
-        };
-        sess_tx
-            .send(SessionMessage::Message(res.to_string()))
-            .unwrap();
+        self.send_new_message_notification(sender_uid, msg.clone());
+        self.send_new_message_notification(receiver_uid, msg);
+
+
     }
 
     async fn session_message(&mut self, session_id: i32, msg: String) {
@@ -124,7 +160,8 @@ impl WsServer {
             } => {
                 self.handle_user_send_message(session_id, receiver_uid, message)
                     .await
-            }
+            },
+            WsRequest::ReadMessage { receiver_uid, sender_uid } => self.handle_read_message(receiver_uid, sender_uid)
         };
     }
 

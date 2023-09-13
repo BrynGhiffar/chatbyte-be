@@ -1,8 +1,8 @@
 use crate::{
     app::AppState,
-    message::session::WsChatSession,
+    message::{session::WsChatSession, application::AppMessage},
     middleware::{get_uid_from_header, VerifyToken},
-    utility::{ApiResult, ApiSuccess::*},
+    utility::{ApiResult, ApiSuccess::*}, service::ws_server::WsRequest,
 };
 use actix_web::{
     web::{self, get, ServiceConfig},
@@ -40,6 +40,7 @@ pub async fn get_messages(
             is_user: (uid == m.sender_id),
             content: m.content,
             time: m.sent_at.format("%H:%M").to_string(),
+            receiver_read: m.read
         })
         .collect::<Vec<_>>();
     Ok(Success(messages))
@@ -52,6 +53,10 @@ pub async fn update_read_messages(
 ) -> ApiResult<&'static str> {
     let receiver_uid = query.receiver_uid;
     let uid = get_uid_from_header(req).unwrap();
+    // since the session id 
+    let message = WsRequest::ReadMessage { receiver_uid: uid, sender_uid: receiver_uid };
+    let message = AppMessage::Message { session_id: uid, message: message.to_string() };
+    state.session_factory.app_tx.send(message).unwrap();
     state
         .message_repository
         .update_message_read(uid, receiver_uid)
@@ -82,14 +87,13 @@ pub struct MessageReceiver {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ClientMessage {
     pub id: i32,
-    #[serde(rename = "receiverId")]
     pub receiver_id: i32,
-    #[serde(rename = "senderId")]
     pub sender_id: i32,
-    #[serde(rename = "isUser")]
     pub is_user: bool,
     pub content: String,
     pub time: String,
+    pub receiver_read: bool
 }
