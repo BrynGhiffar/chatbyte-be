@@ -35,3 +35,6 @@ tokio = { version = "1.32.0", features = ["sync", "macros", "time"] }
 actix-ws = "0.2.5"
 merge-streams = "0.1.2"
 regex = "1.9.5"
+sqlx = { version = "0.7.1", features = ["runtime-tokio", "tls-native-tls", "postgres", "chrono"] }
+actix-multipart = "0.6.1"
+actix-multipart-extract = "0.1.5"

@@ -1,10 +1,12 @@
 use std::fs::File;
 use std::io::prelude::*;
+use sqlx::postgres::PgPoolOptions;
 
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
 use crate::repository::auth_repository::AuthRepository;
 use crate::repository::contact_repository::ContactRepository;
+use crate::repository::group_repository::GroupRepository;
 use crate::repository::message_repository::MessageRepository;
 use crate::repository::session_repository::SessionRepository;
 use crate::repository::user_repository::UserRepository;
@@ -23,6 +25,7 @@ pub struct AppState {
     pub user_repository: UserRepository,
     pub session_repository: SessionRepository,
     pub session_factory: SessionFactory,
+    pub group_repository: GroupRepository,
 }
 
 impl AppState {
@@ -33,7 +36,10 @@ impl AppState {
             .expect("JWT_EXPIRATION_MINS is missing")
             .parse::<u64>()
             .expect("JWT_EXPIRATION_MINS cannot be parsed into u64");
-        let mut opt = ConnectOptions::new(db_url);
+        let sqlx_conn = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&db_url).await.unwrap();
+        let mut opt = ConnectOptions::new(db_url.clone());
         opt.sqlx_logging(false);
         let empty_profile = Self::read_empty_profile();
 
@@ -43,7 +49,11 @@ impl AppState {
         let auth_repository = AuthRepository::new(db.clone());
         let user_repository = UserRepository::new(db.clone());
         let session_repository = SessionRepository::new(db.clone());
-        let (ws_server, session_factory) = WsServer::new(message_repository.clone());
+        let group_repository = GroupRepository::new(sqlx_conn.clone());
+        let (ws_server, session_factory) = WsServer::new(
+            message_repository.clone(),
+            group_repository.clone()
+        );
         let app_state = AppState {
             db,
             env_jwt_secret,
@@ -54,7 +64,8 @@ impl AppState {
             auth_repository,
             user_repository,
             session_factory,
-            session_repository
+            session_repository,
+            group_repository
         };
         (app_state, ws_server)
     }

@@ -23,6 +23,11 @@ impl AuthRepository {
         Ok(tuser)
     }
 
+    pub async fn find_user_by_id(&self, uid: i32) -> Result<Option<user::Model>, DbErr> {
+        let tuser = user::Entity::find_by_id(uid).one(&self.conn).await?;
+        Ok(tuser)
+    }
+
     pub async fn update_username(&self, uid: i32, username: String) -> bool {
         let Ok(user) = user::Entity::find_by_id(uid).one(&self.conn).await else { return false; };
         let Some(user) = user else { return false; };

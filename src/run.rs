@@ -1,5 +1,6 @@
 use crate::routes::auth_route::auth_config;
 use crate::routes::contact_route::contact_config;
+use crate::routes::group_route::group_config;
 use crate::routes::healthcheck_route::healthcheck;
 use crate::routes::message_route::message_config;
 use crate::routes::user_route::user_config;
@@ -25,6 +26,7 @@ pub async fn run() -> std::io::Result<()> {
             .service(web::scope("/api/message").configure(message_config))
             .service(web::scope("/api/contacts").configure(contact_config))
             .service(web::scope("/api/user").configure(user_config))
+            .service(web::scope("/api/group").configure(group_config))
             .service(
                 web::resource("/api/ws")
                     .route(web::get().to(websocket)),

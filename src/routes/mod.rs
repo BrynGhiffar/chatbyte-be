@@ -4,3 +4,4 @@ pub mod healthcheck_route;
 pub mod message_route;
 pub mod user_route;
 pub mod websocket_route;
+pub mod group_route;

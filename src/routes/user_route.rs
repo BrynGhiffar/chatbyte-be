@@ -16,9 +16,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct UpdateUserRequest {
-    pub email: Option<String>,
     pub username: Option<String>,
-    pub password: Option<String>,
 }
 
 pub async fn update_user(
@@ -30,18 +28,11 @@ pub async fn update_user(
     let body = body.into_inner();
     let mut fail_map = HashMap::<String, bool>::new();
     if let Some(username) = body.username {
+        if username.len() < 3 {
+            return Err(BadRequest("Username must at least be 3 characters long".to_string()));
+        }
         let updated = state.auth_repository.update_username(uid, username).await;
         fail_map.insert("username".to_string(), !updated);
-    }
-
-    if let Some(email) = body.email {
-        let updated = state.auth_repository.update_email(uid, email).await;
-        fail_map.insert("email".to_string(), !updated);
-    }
-
-    if let Some(password) = body.password {
-        let updated = state.auth_repository.update_password(uid, password).await;
-        fail_map.insert("password".to_string(), !updated);
     }
 
     if fail_map.values().any(|e| *e) {
