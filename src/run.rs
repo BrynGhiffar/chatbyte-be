@@ -27,10 +27,7 @@ pub async fn run() -> std::io::Result<()> {
             .service(web::scope("/api/contacts").configure(contact_config))
             .service(web::scope("/api/user").configure(user_config))
             .service(web::scope("/api/group").configure(group_config))
-            .service(
-                web::resource("/api/ws")
-                    .route(web::get().to(websocket)),
-            )
+            .service(web::resource("/api/ws").route(web::get().to(websocket)))
     });
 
     let port = 8080;

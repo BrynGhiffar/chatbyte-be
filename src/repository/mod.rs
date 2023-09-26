@@ -1,15 +1,15 @@
 pub mod auth;
 pub mod contact;
 pub mod entities;
-pub mod message;
-pub mod user;
-pub mod session;
 pub mod group;
+pub mod message;
+pub mod session;
+pub mod user;
 
 pub use auth::*;
 pub use contact::*;
 pub use entities::*;
-pub use message::*;
-pub use user::*;
-pub use session::*;
 pub use group::*;
+pub use message::*;
+pub use session::*;
+pub use user::*;

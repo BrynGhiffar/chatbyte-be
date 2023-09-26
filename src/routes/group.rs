@@ -1,61 +1,68 @@
+use actix_multipart_extract::{File, Multipart, MultipartForm};
+use actix_web::web::{self, ServiceConfig};
 use actix_web::{HttpRequest, HttpResponse};
-use actix_multipart_extract::{ File, Multipart, MultipartForm};
-use actix_web::web::{ServiceConfig, self};
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::{VerifyToken, get_uid_from_header};
+use crate::middleware::{get_uid_from_header, VerifyToken};
 use crate::repository::group::{Group, GroupConversation};
-use crate::{app::AppState, utility::ApiResult};
 use crate::utility::ApiError::*;
 use crate::utility::ApiSuccess::*;
+use crate::{app::AppState, utility::ApiResult};
 
 pub fn group_config(cfg: &mut ServiceConfig) {
     cfg.route("", web::get().to(get_user_group).wrap(VerifyToken));
-    cfg.route("/recent", web::get().to(get_user_group_recent).wrap(VerifyToken));
-    cfg.route("/message/{id}", web::get().to(get_group_messages).wrap(VerifyToken));
-    cfg.route("/read/{group_id}", web::put().to(read_all_message).wrap(VerifyToken));
+    cfg.route(
+        "/recent",
+        web::get().to(get_user_group_recent).wrap(VerifyToken),
+    );
+    cfg.route(
+        "/message/{id}",
+        web::get().to(get_group_messages).wrap(VerifyToken),
+    );
+    cfg.route(
+        "/read/{group_id}",
+        web::put().to(read_all_message).wrap(VerifyToken),
+    );
     cfg.route("", web::post().to(create_group).wrap(VerifyToken));
     cfg.route("/image/{id}", web::get().to(get_group_profile_image));
 }
 
-async fn get_user_group(
-    state: web::Data<AppState>,
-    req: HttpRequest
-) -> ApiResult<Vec<Group>> {
+async fn get_user_group(state: web::Data<AppState>, req: HttpRequest) -> ApiResult<Vec<Group>> {
     let uid = get_uid_from_header(req).unwrap();
     let result = state.group_repository.find_groups_for_user(uid).await;
     match result {
         Ok(groups) => Ok(Success(groups)),
-        Err(e) => Err(ServerError(e))
+        Err(e) => Err(ServerError(e)),
     }
 }
 
-
-
 async fn get_user_group_recent(
     state: web::Data<AppState>,
-    req: HttpRequest
+    req: HttpRequest,
 ) -> ApiResult<Vec<GroupConversation>> {
     let user_id = get_uid_from_header(req).unwrap();
     let result = state.group_repository.find_user_group_recent(user_id).await;
     match result {
         Ok(convs) => Ok(Success(convs)),
-        Err(e) => Err(ServerError(e))
+        Err(e) => Err(ServerError(e)),
     }
 }
 
 async fn read_all_message(
     state: web::Data<AppState>,
     group_id: web::Path<(i32,)>,
-    req: HttpRequest
+    req: HttpRequest,
 ) -> ApiResult<&'static str> {
     let user_id = get_uid_from_header(req).unwrap();
     let (group_id,) = group_id.into_inner();
-    let result = state.group_repository.read_all_message(user_id, group_id).await;
+    let result = state
+        .group_repository
+        .read_all_message(user_id, group_id)
+        .await;
     match result {
         Ok(succ) if succ => Ok(Success("Message read successfully")),
         Ok(_) => Err(ServerError("Messages were not read".to_string())),
-        Err(e) => Err(ServerError(e))
+        Err(e) => Err(ServerError(e)),
     }
 }
 
@@ -73,11 +80,11 @@ pub struct GroupMessageResponse {
 async fn create_group(
     state: web::Data<AppState>,
     form: Multipart<CreateGroupForm>,
-    req: HttpRequest
+    req: HttpRequest,
 ) -> ApiResult<String> {
     let uid = get_uid_from_header(req).unwrap();
     let form = form;
-    
+
     let image = &form.profile_picture;
     let name = form.group_name.clone();
     let mut members = Vec::<i32>::new();
@@ -98,24 +105,32 @@ async fn create_group(
     };
     log::info!("adding users to group");
     for uid in members.iter() {
-        let result = state.group_repository.add_user_to_group(*uid, group.id).await;
+        let result = state
+            .group_repository
+            .add_user_to_group(*uid, group.id)
+            .await;
         match result {
             Ok(s) if !s => return Err(ServerError("Failed adding user".to_string())),
             Ok(_) => continue,
-            Err(e) => return Err(ServerError(e))
+            Err(e) => return Err(ServerError(e)),
         };
     }
 
     // setting profile picture for group.
     log::info!("Setting profile picture of group");
     if let Some(image) = image {
-        let result = state.group_repository
+        let result = state
+            .group_repository
             .set_profile_image_for_group(group.id, image.bytes.clone())
             .await;
         match result {
-            Ok(s) if !s => return Err(ServerError("Failed setting profile picture for group".to_string())),
+            Ok(s) if !s => {
+                return Err(ServerError(
+                    "Failed setting profile picture for group".to_string(),
+                ))
+            }
             Ok(_) => return Ok(Success("Successfully created group".to_string())),
-            Err(e) => return Err(ServerError(e))
+            Err(e) => return Err(ServerError(e)),
         };
     }
     return Ok(Success("Successfully created group".to_string()));
@@ -127,8 +142,10 @@ async fn get_group_profile_image(
 ) -> HttpResponse {
     let empty_image = state.empty_profile.clone();
     let group_id = group_id.into_inner().0;
-    let result = state.group_repository
-        .get_profile_image_for_group(group_id).await;
+    let result = state
+        .group_repository
+        .get_profile_image_for_group(group_id)
+        .await;
     match result {
         Ok(Some(img)) => HttpResponse::Ok().body(img.0),
         _ => HttpResponse::Ok().body(empty_image),
@@ -138,30 +155,37 @@ async fn get_group_profile_image(
 async fn get_group_messages(
     state: web::Data<AppState>,
     req: HttpRequest,
-    group_id: web::Path<(i32,)>
+    group_id: web::Path<(i32,)>,
 ) -> ApiResult<Vec<GroupMessageResponse>> {
     let uid = get_uid_from_header(req).unwrap();
     let group_id = group_id.into_inner().0;
     let result = state.group_repository.find_group_members(group_id).await;
     let members = match result {
         Ok(m) => m,
-        Err(e) => return Err(ServerError(e))
+        Err(e) => return Err(ServerError(e)),
     };
     if !members.contains(&uid) {
         return Err(BadRequest("User is not a member".to_string()));
     }
-    let result = state.group_repository.find_all_group_message(group_id).await;
+    let result = state
+        .group_repository
+        .find_all_group_message(group_id)
+        .await;
     match result {
-        Ok(m) => Ok(Success(m.iter()
-            .filter(|m| !m.deleted).map(|m| GroupMessageResponse {
-                id: m.id,
-                group_id: m.group_id,
-                content: m.content.clone(),
-                username: m.username.clone(),
-                sender_id: m.sender_id,
-                sent_at: m.sent_at.format("%H:%M").to_string()
-            }).collect())),
-        Err(e) => Err(ServerError(e))
+        Ok(m) => Ok(Success(
+            m.iter()
+                .filter(|m| !m.deleted)
+                .map(|m| GroupMessageResponse {
+                    id: m.id,
+                    group_id: m.group_id,
+                    content: m.content.clone(),
+                    username: m.username.clone(),
+                    sender_id: m.sender_id,
+                    sent_at: m.sent_at.format("%H:%M").to_string(),
+                })
+                .collect(),
+        )),
+        Err(e) => Err(ServerError(e)),
     }
 }
 

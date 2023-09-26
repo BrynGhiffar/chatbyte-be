@@ -1,10 +1,10 @@
 use actix_web::{
+    web,
     web::{Data, Payload},
     Error, HttpRequest, HttpResponse,
-    web
 };
-use tokio::task::spawn_local;
 use serde::Deserialize;
+use tokio::task::spawn_local;
 
 use crate::{app::AppState, middleware::verify_token, utility::bad_request};
 
@@ -18,7 +18,7 @@ pub async fn websocket(
     let WebsocketQuery { token } = query.into_inner();
     let uid = match verify_token(token.clone()) {
         Err(e) => return Ok(bad_request(e)),
-        Ok(uid) => uid
+        Ok(uid) => uid,
     };
     let session = app.session_factory.create_session(token, uid, ws_tx);
     spawn_local(session.run(ws_rx));

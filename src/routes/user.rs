@@ -29,9 +29,14 @@ pub async fn update_user(
     let mut fail_map = HashMap::<String, bool>::new();
     if let Some(username) = body.username {
         if username.len() < 3 {
-            return Err(BadRequest("Username must at least be 3 characters long".to_string()));
+            return Err(BadRequest(
+                "Username must at least be 3 characters long".to_string(),
+            ));
         }
-        let updated = state.auth_repository.update_username(uid, username).await;
+        let updated = state.auth_repository
+            .update_username(uid, username)
+            .await
+            .map_err(BadRequest)?;
         fail_map.insert("username".to_string(), !updated);
     }
 
@@ -63,7 +68,8 @@ pub async fn upload_avatar(
     state
         .user_repository
         .upsert_user_profile(uid, bytes)
-        .await?;
+        .await
+        .map_err(ServerError)?;
 
     Ok(Success("Successfully updated image"))
 }

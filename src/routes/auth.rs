@@ -3,13 +3,15 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use regex::Regex;
-use crate::{utility::{ApiError, ApiSuccess}, req_model::auth_req_model::{RegisterForm, ChangePasswordForm}};
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
     req_model::auth_req_model::LoginForm,
     utility::ApiResult,
+};
+use crate::{
+    req_model::auth_req_model::{ChangePasswordForm, RegisterForm},
+    utility::{ApiError, ApiSuccess},
 };
 use actix_web::{
     web::{self, Form, Json, ServiceConfig},
@@ -17,6 +19,7 @@ use actix_web::{
 };
 use hmac::{Hmac, Mac};
 use jwt::SignWithKey;
+use regex::Regex;
 use sha2::Sha256;
 
 use ApiError::*;
@@ -26,7 +29,10 @@ pub fn auth_config(cfg: &mut ServiceConfig) {
     cfg.route("/login", web::post().to(login));
     cfg.route("/register", web::post().to(register));
     cfg.route("/valid-token", web::get().to(valid_token).wrap(VerifyToken));
-    cfg.route("/change-password", web::put().to(change_password).wrap(VerifyToken));
+    cfg.route(
+        "/change-password",
+        web::put().to(change_password).wrap(VerifyToken),
+    );
 }
 
 async fn login(
@@ -38,7 +44,8 @@ async fn login(
     let tuser = state
         .auth_repository
         .find_user_by_email(email.clone())
-        .await?
+        .await
+        .map_err(ServerError)?
         .ok_or(email_not_found(email.clone()))?;
     let valid =
         bcrypt::verify(&password, &tuser.password).map_err(|e| ServerError(e.to_string()))?;
@@ -69,7 +76,10 @@ pub fn email_not_found(email: String) -> ApiError {
 }
 
 pub fn email_already_registered(email: String) -> ApiError {
-    BadRequest(format!("User with email {:?} is already registered", email.clone()))
+    BadRequest(format!(
+        "User with email {:?} is already registered",
+        email.clone()
+    ))
 }
 
 pub fn invalid_email(email: String) -> ApiError {
@@ -97,7 +107,10 @@ pub async fn register(
     if !regex.is_match(&email) {
         return Err(invalid_email(email));
     }
-    let res = state.auth_repository.find_user_by_email(email.clone()).await;
+    let res = state
+        .auth_repository
+        .find_user_by_email(email.clone())
+        .await;
     let user = res.map_err(|e| e.to_string()).map_err(BadRequest)?;
     if let Some(_) = user {
         return Err(email_already_registered(email));
@@ -107,22 +120,28 @@ pub async fn register(
         return Err(password_too_short());
     }
 
-    let success = state.auth_repository.create_user(email, password).await;
+    let success = state.auth_repository
+        .create_user(email, password)
+        .await
+        .map_err(ServerError)?;
     if !success {
-        return Err(ServerError("A database error occurred".to_string()))
+        return Err(ServerError("A database error occurred".to_string()));
     }
     return Ok(Success("Successfully registered".to_string()));
 }
 
-
 pub async fn change_password(
     req: HttpRequest,
     state: web::Data<AppState>,
-    body: Either<Json<ChangePasswordForm>, Form<ChangePasswordForm>>
+    body: Either<Json<ChangePasswordForm>, Form<ChangePasswordForm>>,
 ) -> ApiResult<String> {
-    let ChangePasswordForm { old_password, new_password } = body.into_inner();
+    let ChangePasswordForm {
+        old_password,
+        new_password,
+    } = body.into_inner();
     let uid = get_uid_from_header(req).unwrap();
-    let user = state.auth_repository
+    let user = state
+        .auth_repository
         .find_user_by_id(uid)
         .await
         .map_err(|e| e.to_string())
@@ -133,12 +152,16 @@ pub async fn change_password(
     let valid =
         bcrypt::verify(&old_password, &user.password).map_err(|e| ServerError(e.to_string()))?;
     if !valid {
-        return Err(incorrect_password())
+        return Err(incorrect_password());
     }
     if new_password.len() < 5 {
         return Err(new_password_too_short());
     }
-    let res = state.auth_repository.update_password(uid, new_password).await;
+    let res = state
+        .auth_repository
+        .update_password(uid, new_password)
+        .await
+        .map_err(BadRequest)?;
     if !res {
         return Err(ServerError("Failed to update password".to_string()));
     }

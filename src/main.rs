@@ -6,8 +6,8 @@ use actix_web;
 mod app;
 mod middleware;
 mod repository;
-mod websocket;
 mod utility;
+mod websocket;
 // use entities::{ prelude::*, * };
 
 #[actix_web::main]

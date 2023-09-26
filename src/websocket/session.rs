@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use crate::{
-    websocket::message::{AppMessage, AppTx, SessionMessage},
     middleware::verify_token,
+    websocket::message::{AppMessage, AppTx, SessionMessage},
 };
 use actix_ws::{Message, MessageStream, ProtocolError};
 use futures_util::{FutureExt, StreamExt};
@@ -120,7 +120,11 @@ impl Session {
                 }
             };
         }
-        self.app_tx.send(AppMessage::Disconnect { session_id: self.session_id }).unwrap();
+        self.app_tx
+            .send(AppMessage::Disconnect {
+                session_id: self.session_id,
+            })
+            .unwrap();
         token_checker.abort();
         self.ws_tx.close(None).await.unwrap();
     }

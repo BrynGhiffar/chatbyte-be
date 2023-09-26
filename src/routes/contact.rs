@@ -3,6 +3,7 @@ use actix_web::{
     HttpRequest,
 };
 use serde::Serialize;
+use crate::utility::ApiError::*;
 
 use crate::{
     app::AppState,
@@ -21,7 +22,10 @@ pub fn contact_config(cfg: &mut ServiceConfig) {
 
 async fn get_contacts(req: HttpRequest, state: web::Data<AppState>) -> ApiResult<Vec<Contact>> {
     let uid = get_uid_from_header(req).unwrap();
-    let contacts = state.contact_repository.get_contacts(uid).await?;
+    let contacts = state.contact_repository
+        .get_contacts(uid)
+        .await
+        .map_err(ServerError)?;
 
     Ok(Success(contacts))
 }
@@ -32,7 +36,10 @@ pub async fn recent_conversation(
 ) -> ApiResult<Vec<RecentConversation>> {
     let state = state.into_inner();
     let uid = get_uid_from_header(req).unwrap();
-    let res = state.message_repository.get_recent_messages(uid).await?;
+    let res = state.message_repository
+        .get_recent_messages(uid)
+        .await
+        .map_err(ServerError)?;
     let recent_conversations = res.iter().map(RecentConversation::from).collect::<Vec<_>>();
 
     Ok(Success(recent_conversations))

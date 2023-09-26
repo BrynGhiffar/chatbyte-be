@@ -1,6 +1,6 @@
+use sqlx::postgres::PgPoolOptions;
 use std::fs::File;
 use std::io::prelude::*;
-use sqlx::postgres::PgPoolOptions;
 
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
@@ -38,22 +38,22 @@ impl AppState {
             .expect("JWT_EXPIRATION_MINS cannot be parsed into u64");
         let sqlx_conn = PgPoolOptions::new()
             .max_connections(5)
-            .connect(&db_url).await.unwrap();
+            .connect(&db_url)
+            .await
+            .unwrap();
         let mut opt = ConnectOptions::new(db_url.clone());
         opt.sqlx_logging(false);
         let empty_profile = Self::read_empty_profile();
 
         let db = Database::connect(opt).await.unwrap();
-        let message_repository = MessageRepository::new(db.clone());
-        let contact_repository = ContactRepository::new(db.clone());
-        let auth_repository = AuthRepository::new(db.clone());
-        let user_repository = UserRepository::new(db.clone());
+        let message_repository = MessageRepository::new(sqlx_conn.clone());
+        let contact_repository = ContactRepository::new(sqlx_conn.clone());
+        let auth_repository = AuthRepository::new(sqlx_conn.clone());
+        let user_repository = UserRepository::new(sqlx_conn.clone());
         let session_repository = SessionRepository::new(db.clone());
         let group_repository = GroupRepository::new(sqlx_conn.clone());
-        let (ws_server, session_factory) = WsServer::new(
-            message_repository.clone(),
-            group_repository.clone()
-        );
+        let (ws_server, session_factory) =
+            WsServer::new(message_repository.clone(), group_repository.clone());
         let app_state = AppState {
             db,
             env_jwt_secret,
@@ -65,7 +65,7 @@ impl AppState {
             user_repository,
             session_factory,
             session_repository,
-            group_repository
+            group_repository,
         };
         (app_state, ws_server)
     }

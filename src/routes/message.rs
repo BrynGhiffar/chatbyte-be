@@ -1,8 +1,9 @@
 use crate::{
     app::AppState,
-    websocket::message::AppMessage,
     middleware::{get_uid_from_header, VerifyToken},
-    utility::{ApiResult, ApiSuccess::*}, websocket::server::WsRequest,
+    utility::{ApiResult, ApiSuccess::*, ApiError::*},
+    websocket::message::AppMessage,
+    websocket::server::WsRequest,
 };
 use actix_web::{
     web::{self, get, ServiceConfig},
@@ -28,7 +29,9 @@ pub async fn get_messages(
     let messages = state
         .message_repository
         .get_message_between_users(uid, receiver_uid)
-        .await?;
+        .await
+        .map_err(ServerError)?
+        ;
     let messages = messages
         .into_iter()
         .map(|m| ClientMessage {
@@ -38,7 +41,7 @@ pub async fn get_messages(
             is_user: (uid == m.sender_id),
             content: m.content,
             time: m.sent_at.format("%H:%M").to_string(),
-            receiver_read: m.read
+            receiver_read: m.read,
         })
         .collect::<Vec<_>>();
     Ok(Success(messages))
@@ -51,14 +54,21 @@ pub async fn update_read_messages(
 ) -> ApiResult<&'static str> {
     let receiver_uid = query.receiver_uid;
     let uid = get_uid_from_header(req).unwrap();
-    // since the session id 
-    let message = WsRequest::ReadMessage { receiver_uid: uid, sender_uid: receiver_uid };
-    let message = AppMessage::Message { session_id: uid, message: message.to_string() };
+    // since the session id
+    let message = WsRequest::ReadMessage {
+        receiver_uid: uid,
+        sender_uid: receiver_uid,
+    };
+    let message = AppMessage::Message {
+        session_id: uid,
+        message: message.to_string(),
+    };
     state.session_factory.app_tx.send(message).unwrap();
     state
         .message_repository
         .update_message_read(uid, receiver_uid)
-        .await?;
+        .await
+        .map_err(ServerError)?;
     return Ok(Success("Unread messages"));
 }
 
@@ -78,5 +88,5 @@ pub struct ClientMessage {
     pub is_user: bool,
     pub content: String,
     pub time: String,
-    pub receiver_read: bool
+    pub receiver_read: bool,
 }
