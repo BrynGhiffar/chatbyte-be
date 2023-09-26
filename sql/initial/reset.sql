@@ -4,6 +4,7 @@ DROP VIEW IF EXISTS public.unread_message_count;
 DROP VIEW IF EXISTS public.last_message;
 DROP VIEW IF EXISTS public.message_sender;
 DROP VIEW IF EXISTS public.last_message_group;
+DROP VIEW IF EXISTS public.username_group_message;
 
 -- Tables
 DROP TABLE IF EXISTS public.group_message_read;

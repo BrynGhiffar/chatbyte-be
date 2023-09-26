@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
-    repository::{contact_repository::Contact, message_repository::ConversationRecentMessages},
+    repository::{contact::Contact, message::ConversationRecentMessages},
     utility::{ApiResult, ApiSuccess::*},
 };
 

@@ -1,12 +1,12 @@
+#![allow(dead_code)]
 mod req_model;
 mod routes;
 mod run;
 use actix_web;
 mod app;
-mod message;
 mod middleware;
 mod repository;
-mod service;
+mod websocket;
 mod utility;
 // use entities::{ prelude::*, * };
 

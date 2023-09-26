@@ -4,14 +4,14 @@ use sqlx::postgres::PgPoolOptions;
 
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
-use crate::repository::auth_repository::AuthRepository;
-use crate::repository::contact_repository::ContactRepository;
-use crate::repository::group_repository::GroupRepository;
-use crate::repository::message_repository::MessageRepository;
-use crate::repository::session_repository::SessionRepository;
-use crate::repository::user_repository::UserRepository;
-use crate::service::session::SessionFactory;
-use crate::service::ws_server::WsServer;
+use crate::repository::AuthRepository;
+use crate::repository::ContactRepository;
+use crate::repository::GroupRepository;
+use crate::repository::MessageRepository;
+use crate::repository::SessionRepository;
+use crate::repository::UserRepository;
+use crate::websocket::SessionFactory;
+use crate::websocket::WsServer;
 
 #[derive(Clone)]
 pub struct AppState {

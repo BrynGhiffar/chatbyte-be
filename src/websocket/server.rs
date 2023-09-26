@@ -1,8 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{
-    message::application::{AppMessage, AppRx, SessionMessage, SessionTx},
-    repository::{message_repository::MessageRepository, entities::message, group_repository::{GroupRepository, GroupMessage}},
+    websocket::message::{AppMessage, AppRx, SessionMessage, SessionTx},
+    repository::{message::MessageRepository, entities::message, group::{GroupRepository, GroupMessage}},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
@@ -65,6 +65,7 @@ enum WsResponse {
     GroupMessageNotification {
         id: i32,
         sender_id: i32,
+        username: String,
         group_id: i32,
         content: String,
         sent_at: String
@@ -91,7 +92,8 @@ impl WsResponse {
     fn from_group_message(message: GroupMessage) -> Self {
         Self::GroupMessageNotification { 
             id: message.id, 
-            sender_id: message.sender_id, 
+            sender_id: message.sender_id,
+            username: message.username, 
             group_id: message.group_id, 
             content: message.content, 
             sent_at: message.sent_at.format("%H:%M").to_string()

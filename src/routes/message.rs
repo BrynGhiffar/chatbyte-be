@@ -1,14 +1,13 @@
 use crate::{
     app::AppState,
-    message::{session::WsChatSession, application::AppMessage},
+    websocket::message::AppMessage,
     middleware::{get_uid_from_header, VerifyToken},
-    utility::{ApiResult, ApiSuccess::*}, service::ws_server::WsRequest,
+    utility::{ApiResult, ApiSuccess::*}, websocket::server::WsRequest,
 };
 use actix_web::{
     web::{self, get, ServiceConfig},
-    Error, HttpRequest, Responder,
+    HttpRequest,
 };
-use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 
 pub fn message_config(cfg: &mut ServiceConfig) {
@@ -17,7 +16,6 @@ pub fn message_config(cfg: &mut ServiceConfig) {
         "/read",
         web::put().to(update_read_messages).wrap(VerifyToken),
     );
-    cfg.route("/ws", get().to(chat_websocket));
 }
 
 pub async fn get_messages(
@@ -64,22 +62,7 @@ pub async fn update_read_messages(
     return Ok(Success("Unread messages"));
 }
 
-async fn chat_websocket(
-    req: HttpRequest,
-    stream: web::Payload,
-    query: web::Query<ChatWebsocketQuery>,
-) -> Result<impl Responder, Error> {
-    let ChatWebsocketQuery { token } = query.into_inner();
-    log::info!("token: {}", token);
-    ws::start(WsChatSession::new(token), &req, stream)
-}
-
 // --- UTILITY SRUCTS ---
-#[derive(Deserialize)]
-struct ChatWebsocketQuery {
-    token: String,
-}
-
 #[derive(Deserialize)]
 pub struct MessageReceiver {
     #[serde(rename = "receiverUid")]

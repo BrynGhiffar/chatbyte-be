@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    message::application::{AppMessage, AppTx, SessionMessage},
+    websocket::message::{AppMessage, AppTx, SessionMessage},
     middleware::verify_token,
 };
 use actix_ws::{Message, MessageStream, ProtocolError};

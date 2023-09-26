@@ -1,7 +1,15 @@
-pub mod auth_route;
-pub mod contact_route;
-pub mod healthcheck_route;
-pub mod message_route;
-pub mod user_route;
-pub mod websocket_route;
-pub mod group_route;
+pub mod auth;
+pub mod contact;
+pub mod healthcheck;
+pub mod message;
+pub mod user;
+pub mod websocket;
+pub mod group;
+
+pub use auth::*;
+pub use contact::*;
+pub use healthcheck::*;
+pub use message::*;
+pub use user::*;
+pub use websocket::*;
+pub use group::*;

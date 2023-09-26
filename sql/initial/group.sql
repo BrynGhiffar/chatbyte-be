@@ -26,16 +26,17 @@ CREATE TABLE public.group_message(
     content TEXT NOT NULL,
     group_id INTEGER NOT NULL,
     deleted BOOLEAN DEFAULT FALSE NOT NULL,
-    CONSTRAINT group_message_sender_id FOREIGN KEY(sender_id) REFERENCES public.user(id)
+    CONSTRAINT group_message_sender_id FOREIGN KEY(sender_id) REFERENCES public.user(id),
+    CONSTRAINT group_message_group_id FOREIGN KEY(group_id) REFERENCES public.group(id),
+    UNIQUE(id, group_id)
 );
 
 CREATE TABLE public.group_message_read(
     group_id INTEGER NOT NULL,
     message_id INTEGER NOT NULL,
     reader_id INTEGER NOT NULL,
-    CONSTRAINT fk_group_message_read_group_id FOREIGN KEY (group_id) REFERENCES public.group(id),
-    CONSTRAINT fk_group_message_read_message_id FOREIGN KEY (message_id) REFERENCES public.group_message(id),
-    CONSTRAINT fk_group_message_reader_id FOREIGN KEY (reader_id) REFERENCES public.user(id),
+    CONSTRAINT fk_group_message_read_member FOREIGN KEY (group_id, reader_id) REFERENCES public.group_member(group_id, user_id),
+    CONSTRAINT fk_group_message_read_group_message FOREIGN KEY (message_id, group_id) REFERENCES public.group_message(id, group_id),
     UNIQUE(message_id, reader_id)
 );
 
@@ -44,10 +45,37 @@ CREATE TABLE public.group_message_read(
 -- make these views when we have more data to work with.
 
 CREATE VIEW public.last_message_group AS
-    SELECT MAX(id) last_msg_id,
-        group_id
-    FROM public.group_message
-    GROUP BY group_id;
+SELECT 
+    G.ID GROUP_ID,
+    G.NAME GROUP_NAME,
+    U.USERNAME USERNAME,
+    M.SENT_AT SENT_AT,
+    M.CONTENT CONTENT,
+    M.DELETED DELETED
+FROM PUBLIC.GROUP_MESSAGE M
+    FULL JOIN PUBLIC.GROUP G ON G.ID = M.GROUP_ID
+    FULL JOIN PUBLIC.USER U ON U.ID = M.SENDER_ID
+WHERE G.ID IS NOT NULL
+AND 
+    CASE
+        WHEN M.SENT_AT IS NOT NULL THEN (M.SENT_AT IN (SELECT MAX(sent_at) as id FROM PUBLIC.GROUP_MESSAGE GROUP BY PUBLIC.GROUP_MESSAGE.GROUP_ID)) ELSE TRUE
+    END
+;
+
+CREATE VIEW public.username_group_message AS
+SELECT 
+    GM.ID as ID,
+    GM.GROUP_ID,
+    GM.sender_id, 
+    U.username, 
+    GM.sent_at,
+    GM.deleted,
+    GM.content
+FROM PUBLIC.GROUP_MESSAGE GM
+    JOIN PUBLIC.USER U ON GM.SENDER_ID = U.ID
+WHERE GM.GROUP_ID = 4 AND DELETED = FALSE
+ORDER BY GM.SENT_AT
+;
 
 CREATE SEQUENCE public.group_id_seq AS INTEGER
     START WITH 1

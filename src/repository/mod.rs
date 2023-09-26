@@ -1,7 +1,15 @@
-pub mod auth_repository;
-pub mod contact_repository;
+pub mod auth;
+pub mod contact;
 pub mod entities;
-pub mod message_repository;
-pub mod user_repository;
-pub mod session_repository;
-pub mod group_repository;
+pub mod message;
+pub mod user;
+pub mod session;
+pub mod group;
+
+pub use auth::*;
+pub use contact::*;
+pub use entities::*;
+pub use message::*;
+pub use user::*;
+pub use session::*;
+pub use group::*;

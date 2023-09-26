@@ -4,14 +4,16 @@ use actix_web::web::{ServiceConfig, self};
 use serde::{Deserialize, Serialize};
 
 use crate::middleware::{VerifyToken, get_uid_from_header};
-use crate::repository::group_repository::Group;
+use crate::repository::group::{Group, GroupConversation};
 use crate::{app::AppState, utility::ApiResult};
 use crate::utility::ApiError::*;
 use crate::utility::ApiSuccess::*;
 
 pub fn group_config(cfg: &mut ServiceConfig) {
     cfg.route("", web::get().to(get_user_group).wrap(VerifyToken));
+    cfg.route("/recent", web::get().to(get_user_group_recent).wrap(VerifyToken));
     cfg.route("/message/{id}", web::get().to(get_group_messages).wrap(VerifyToken));
+    cfg.route("/read/{group_id}", web::put().to(read_all_message).wrap(VerifyToken));
     cfg.route("", web::post().to(create_group).wrap(VerifyToken));
     cfg.route("/image/{id}", web::get().to(get_group_profile_image));
 }
@@ -28,11 +30,41 @@ async fn get_user_group(
     }
 }
 
+
+
+async fn get_user_group_recent(
+    state: web::Data<AppState>,
+    req: HttpRequest
+) -> ApiResult<Vec<GroupConversation>> {
+    let user_id = get_uid_from_header(req).unwrap();
+    let result = state.group_repository.find_user_group_recent(user_id).await;
+    match result {
+        Ok(convs) => Ok(Success(convs)),
+        Err(e) => Err(ServerError(e))
+    }
+}
+
+async fn read_all_message(
+    state: web::Data<AppState>,
+    group_id: web::Path<(i32,)>,
+    req: HttpRequest
+) -> ApiResult<&'static str> {
+    let user_id = get_uid_from_header(req).unwrap();
+    let (group_id,) = group_id.into_inner();
+    let result = state.group_repository.read_all_message(user_id, group_id).await;
+    match result {
+        Ok(succ) if succ => Ok(Success("Message read successfully")),
+        Ok(_) => Err(ServerError("Messages were not read".to_string())),
+        Err(e) => Err(ServerError(e))
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupMessageResponse {
     pub id: i32,
     pub sender_id: i32,
+    pub username: String,
     pub group_id: i32,
     pub content: String,
     pub sent_at: String,
@@ -125,6 +157,7 @@ async fn get_group_messages(
                 id: m.id,
                 group_id: m.group_id,
                 content: m.content.clone(),
+                username: m.username.clone(),
                 sender_id: m.sender_id,
                 sent_at: m.sent_at.format("%H:%M").to_string()
             }).collect())),
