@@ -1,7 +1,7 @@
 use chrono::Local;
 use sqlx::{Pool, Postgres};
 
-use super::{Message, GET_MESSAGE_BETWEEN_USER_STMT, UPDATE_MESSAGE_READ_STMT, ConversationRecentMessages, CREATE_MESSAGE_STMT};
+use super::{Message, GET_MESSAGE_BETWEEN_USER_STMT, UPDATE_MESSAGE_READ_STMT, ConversationRecentMessages, CREATE_MESSAGE_STMT, GET_RECENT_MESSAGE_STMT};
 
 #[derive(Clone)]
 pub struct MessageRepository {
@@ -28,8 +28,8 @@ impl MessageRepository {
 
     pub async fn update_message_read(&self, to_user: i32, from_user: i32) -> Result<(), String> {
         sqlx::query(UPDATE_MESSAGE_READ_STMT)
-            .bind(from_user)
             .bind(to_user)
+            .bind(from_user)
             .execute(&self.conn)
             .await
             .map_err(|e| e.to_string())
@@ -40,7 +40,7 @@ impl MessageRepository {
         &self,
         user_id: i32,
     ) -> Result<Vec<ConversationRecentMessages>, String> {
-        sqlx::query_as::<_,ConversationRecentMessages>(GET_MESSAGE_BETWEEN_USER_STMT)
+        sqlx::query_as::<_,ConversationRecentMessages>(GET_RECENT_MESSAGE_STMT)
             .bind(user_id)
             .fetch_all(&self.conn)
             .await

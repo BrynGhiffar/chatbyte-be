@@ -1,16 +1,6 @@
- SELECT 
-    group_message.group_id, 
-    group_message.id, 
-    group_message.content, 
-    group_message.sent_at, 
-    group_message.sender_id 
-FROM (
-    SELECT MAX(id) id,
-        public.group_message.group_id
-    FROM public.group_message
-    GROUP BY group_id
-) as last_msg 
-JOIN public.group_message on last_msg.id = group_message.id
+SELECT * FROM PUBLIC.GROUP;
+
+SELECT * FROM PUBLIC.MESSAGE;
 
 SELECT 
     public.group.name as name, 
@@ -36,8 +26,7 @@ FROM (
     ON last_msg.id = group_message.id
 ) AS a JOIN public.group ON public.group.id = a.group_id;
 
-SELECT * FROM PUBLIC.GROUP;
-SELECT * FROM PUBLIC.GROUP_MEMBER;
+SELECT * FROM PUBLIC.USER;
 
 SELECT 
     G.ID GROUP_ID,
@@ -57,7 +46,7 @@ AND
 -- AND EXISTS (SELECT 1 FROM PUBLIC.GROUP_MEMBER GMEM WHERE GMEM.GROUP_ID = G.ID AND GMEM.USER_ID = 1)
 ;
 
-select * from PUBLIC.LAST_MESSAGE_GROUP;
+SELECT * FROM PUBLIC.USER_AVATAR LIMIT 1;
 
 SELECT 
     GMEM.GROUP_ID, 
@@ -240,3 +229,24 @@ WITH GM AS (
     GM.DELETED AS DELETED,
     GM.SENT_AT AS SENT_AT
 FROM GM JOIN PUBLIC.USER U ON U.ID = GM.SENDER_ID;
+
+SELECT
+    UNREAD_MESSAGE_CONTENT.ID,
+    CASE WHEN SENDER_ID = 3 THEN RECEIVER_ID ELSE SENDER_ID END AS CONTACT_ID,
+    SENT_AT,
+    LAST_MESSAGE,
+    CASE WHEN RECEIVER_ID != 3 THEN 0 ELSE UNREAD_COUNT END,
+    PUBLIC.USER.USERNAME
+FROM PUBLIC.UNREAD_MESSAGE_CONTENT
+    JOIN PUBLIC.USER ON 
+        CASE WHEN LEAST(RECEIVER_ID, SENDER_ID) = 3 THEN
+            GREATEST(RECEIVER_ID, SENDER_ID) = PUBLIC.USER.ID
+        ELSE
+            LEAST(RECEIVER_ID, SENDER_ID) = PUBLIC.USER.ID
+        END
+WHERE 3 IN (SENDER_ID, RECEIVER_ID)
+
+SELECT * FROM PUBLIC.MESSAGE
+    WHERE (RECEIVER_ID = 1 AND SENDER_ID = 3)
+    OR (RECEIVER_ID = 3 AND SENDER_ID = 1)
+ORDER BY SENT_AT ASC;

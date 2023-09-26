@@ -2,8 +2,6 @@ use sqlx::postgres::PgPoolOptions;
 use std::fs::File;
 use std::io::prelude::*;
 
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
-
 use crate::repository::AuthRepository;
 use crate::repository::ContactRepository;
 use crate::repository::GroupRepository;
@@ -15,7 +13,6 @@ use crate::websocket::WsServer;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: DatabaseConnection,
     pub env_jwt_secret: String,
     pub env_jwt_secret_mins: u64,
     pub empty_profile: Vec<u8>,
@@ -41,21 +38,17 @@ impl AppState {
             .connect(&db_url)
             .await
             .unwrap();
-        let mut opt = ConnectOptions::new(db_url.clone());
-        opt.sqlx_logging(false);
         let empty_profile = Self::read_empty_profile();
 
-        let db = Database::connect(opt).await.unwrap();
         let message_repository = MessageRepository::new(sqlx_conn.clone());
         let contact_repository = ContactRepository::new(sqlx_conn.clone());
         let auth_repository = AuthRepository::new(sqlx_conn.clone());
         let user_repository = UserRepository::new(sqlx_conn.clone());
-        let session_repository = SessionRepository::new(db.clone());
+        let session_repository = SessionRepository::new(sqlx_conn.clone());
         let group_repository = GroupRepository::new(sqlx_conn.clone());
         let (ws_server, session_factory) =
             WsServer::new(message_repository.clone(), group_repository.clone());
         let app_state = AppState {
-            db,
             env_jwt_secret,
             env_jwt_secret_mins,
             empty_profile,

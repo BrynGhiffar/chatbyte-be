@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
-    repository::entities::user,
     utility::{ApiError::*, ApiResult, ApiSuccess::*},
 };
 use actix_web::{
@@ -11,7 +10,6 @@ use actix_web::{
     HttpRequest, HttpResponse, Responder,
 };
 use futures::StreamExt;
-use sea_orm::EntityTrait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -87,12 +85,16 @@ pub async fn get_user_details(
     req: HttpRequest,
     state: web::Data<AppState>,
 ) -> ApiResult<UserDetail> {
-    let db = &state.db;
     let uid = get_uid_from_header(req).unwrap();
 
-    let Some(model) = user::Entity::find_by_id(uid).one(db).await? else {
-        return Err(BadRequest("user not found".to_string()));
-    };
+    let Some(model) = state
+        .auth_repository
+        .find_user_by_id(uid)
+        .await
+        .map_err(ServerError)?
+        else {
+            return Err(BadRequest("user not found".to_string()));
+        };
 
     Ok(Success(UserDetail {
         uid: model.id,
