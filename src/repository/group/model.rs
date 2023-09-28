@@ -31,10 +31,16 @@ impl FromRow<'_, PgRow> for GroupConversation {
         let content = row.try_get::<Option<String>, _>("content")?;
         let detail = if let Some(content) = content {
             let sent_at: NaiveDateTime = row.try_get("sent_at")?;
+            let deleted: bool = row.try_get("deleted")?;
+            let content = if deleted {
+                String::from("")
+            } else { 
+                content
+            };
             Some(GroupConversationDetail {
                 content,
                 username: row.try_get("username")?,
-                deleted: row.try_get("deleted")?,
+                deleted,
                 sent_at: sent_at.format("%H:%M").to_string(),
             })
         } else {

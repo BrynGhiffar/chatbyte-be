@@ -75,6 +75,7 @@ pub struct GroupMessageResponse {
     pub group_id: i32,
     pub content: String,
     pub sent_at: String,
+    pub deleted: bool
 }
 
 async fn create_group(
@@ -173,17 +174,25 @@ async fn get_group_messages(
         .await;
     match result {
         Ok(m) => Ok(Success(
-            m.iter()
-                .filter(|m| !m.deleted)
-                .map(|m| GroupMessageResponse {
+            m
+            .iter()
+            .map(|m| {
+                let content = if m.deleted { 
+                    String::from("") 
+                } else { 
+                    m.content.clone() 
+                };
+                GroupMessageResponse {
                     id: m.id,
                     group_id: m.group_id,
-                    content: m.content.clone(),
+                    content,
                     username: m.username.clone(),
                     sender_id: m.sender_id,
                     sent_at: m.sent_at.format("%H:%M").to_string(),
-                })
-                .collect(),
+                    deleted: m.deleted
+                }
+            })
+            .collect(),
         )),
         Err(e) => Err(ServerError(e)),
     }

@@ -7,7 +7,7 @@ use super::{
     CREATE_GROUP_MESSAGE_STMT, CREATE_GROUP_STMT, DELETE_GROUP_STMT, FIND_ALL_GROUP_MESSAGE_STMT,
     FIND_GROUP_FOR_USER_STMT, FIND_GROUP_MEMBER_STMT, FIND_USER_GROUP_RECENT_STMT,
     GET_PROFILE_IMAGE_FOR_GROUP_STMT, READ_ALL_MESSAGE_STMT, REMOVE_USER_FROM_GROUP_STMT,
-    RENAME_GROUP_STMT, SET_PROFILE_IMAGE_FOR_GROUP_STMT,
+    RENAME_GROUP_STMT, SET_PROFILE_IMAGE_FOR_GROUP_STMT, SET_MESSAGE_DELETE_STMT, FIND_GROUP_MESSAGE_BY_ID,
 };
 
 #[derive(Clone)]
@@ -156,5 +156,22 @@ impl GroupRepository {
             .await
             .map_err(|e| e.to_string())
             .map(|_| true)
+    }
+
+    pub async fn set_message_to_delete(&self, message_id: i32) -> Result<bool, String> {
+        sqlx::query(SET_MESSAGE_DELETE_STMT)
+            .bind(message_id)
+            .execute(&self.conn)
+            .await
+            .map_err(|e| e.to_string())
+            .map(|r| r.rows_affected() == 1)
+    }
+
+    pub async fn find_message_by_id(&self, message_id: i32) -> Result<Option<GroupMessage>, String> {
+        sqlx::query_as::<_, GroupMessage>(FIND_GROUP_MESSAGE_BY_ID)
+            .bind(message_id)
+            .fetch_optional(&self.conn)
+            .await
+            .map_err(|e| e.to_string())
     }
 }

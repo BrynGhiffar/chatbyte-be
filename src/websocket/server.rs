@@ -24,6 +24,12 @@ pub enum WsRequest {
     #[serde(rename = "SEND_GROUP_MESSAGE")]
     #[serde(rename_all = "camelCase")]
     SendGroupMessage { group_id: i32, message: String },
+    #[serde(rename = "DELETE_DIRECT_MESSAGE")]
+    #[serde(rename_all = "camelCase")]
+    DeleteDirectMessage { message_id: i32, },
+    #[serde(rename = "DELETE_GROUP_MESSAGE")]
+    #[serde(rename_all = "camelCase")]
+    DeleteGroupMessage { message_id: i32 }
 }
 
 impl FromStr for WsRequest {
@@ -71,6 +77,14 @@ enum WsResponse {
 
     #[serde(rename = "ERROR_NOTIFICATION")]
     ErrorNotification { message: String },
+
+    #[serde(rename = "DELETE_DIRECT_MESSAGE_NOTIFICATION")]
+    #[serde(rename_all = "camelCase")]
+    DeleteMessageNotification { contact_id: i32, message_id: i32 },
+
+    #[serde(rename = "DELETE_GROUP_MESSAGE_NOTIFICATION")]
+    #[serde(rename_all = "camelCase")]
+    DeleteGroupMessageNotification { group_id: i32, message_id: i32 }
 }
 
 impl ToString for WsResponse {
@@ -198,6 +212,54 @@ impl WsServer {
         }
     }
 
+    async fn handle_delete_direct_message(&self, sender_id: i32, message_id: i32) {
+        let result = self.message_repository.find_message_by_id(message_id).await;
+        let message = match result {
+            Ok(Some(message)) => message,
+            Ok(None) => return,
+            Err(e) => return log::info!("{}", e),
+        };
+        if message.sender_id != sender_id { return; }
+        let result = self.message_repository.delete_message(message_id).await;
+        let success = match result {
+            Ok(succ) => succ,
+            Err(e) => return log::info!("{}", e),
+        };
+        if !success { return; }
+        let sender_message = WsResponse::DeleteMessageNotification { contact_id: message.receiver_id, message_id };
+        let receiver_message = WsResponse::DeleteMessageNotification { contact_id: message.sender_id, message_id };
+        self.send_session_message(message.sender_id, sender_message.to_string());
+        self.send_session_message(message.receiver_id, receiver_message.to_string());
+    }
+
+    async fn handle_delete_group_message(&self, sender_id: i32, message_id: i32) {
+        use WsResponse::*;
+        let result = self.group_repository.find_message_by_id(message_id).await;
+        let message = match result {
+            Ok(Some(mess)) => mess,
+            Ok(None) => return,
+            Err(e) => return log::info!("{}", e),
+        };
+        if message.sender_id != sender_id { return; }
+        let result = self.group_repository.set_message_to_delete(message_id).await;
+        let success = match result {
+            Ok(succ) => succ,
+            Err(e) => return log::info!("{e}")
+        };
+        if !success { return; }
+        let result = self.group_repository.find_group_members(message.group_id).await;
+        let members = match result {
+            Ok(mems) => mems,
+            Err(e) => return log::info!("{e}")
+        };
+        for user_id in members {
+            self.send_session_message(user_id, DeleteGroupMessageNotification { 
+                group_id: message.group_id, 
+                message_id: message.id 
+            }.to_string());
+        }
+    }
+
     async fn session_message(&mut self, session_id: i32, msg: String) {
         let Ok(message) = WsRequest::from_str(&msg) else { return; };
         match message {
@@ -215,6 +277,12 @@ impl WsServer {
             WsRequest::SendGroupMessage { group_id, message } => {
                 self.handle_send_group_message(session_id, group_id, message)
                     .await
+            },
+            WsRequest::DeleteDirectMessage { message_id } => {
+                self.handle_delete_direct_message(session_id, message_id).await
+            },
+            WsRequest::DeleteGroupMessage { message_id } => {
+                self.handle_delete_group_message(session_id, message_id).await
             }
         };
     }

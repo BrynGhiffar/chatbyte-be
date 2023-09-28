@@ -4,7 +4,8 @@ CREATE TABLE public.message (
     sender_id integer NOT NULL,
     receiver_id integer NOT NULL,
     content text NOT NULL,
-    read boolean DEFAULT false NOT NULL
+    read boolean DEFAULT false NOT NULL,
+    deleted BOOLEAN DEFAULT FALSE NOT NULL
 );
 
 CREATE SEQUENCE public.message_id_seq

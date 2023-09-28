@@ -27,7 +27,8 @@ CREATE VIEW unread_message_content as
         message.sender_id,
         message.sent_at,
         (case when unread_message_count.unread_count is null then 0 else unread_message_count.unread_count end) as unread_count,
-        message.content as last_message
+        message.content as last_message,
+        message.deleted as deleted
     from message
     join last_message on message.id = last_message.last_msg_id
     left join unread_message_count on message.sender_id = unread_message_count.sender_id and message.receiver_id = unread_message_count.receiver_id

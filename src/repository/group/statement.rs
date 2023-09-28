@@ -8,7 +8,7 @@ NOT EXISTS (
         WHERE GMR.message_id = GM.id 
             AND GMR.reader_id = $1
             AND GMR.group_id = $2
-);
+)
 ";
 
 pub const FIND_USER_GROUP_RECENT_STMT: &str = "
@@ -92,4 +92,20 @@ INSERT INTO PUBLIC.GROUP_MEMBER (group_id, user_id) VALUES ($1, $2)
 ";
 pub const RENAME_GROUP_STMT: &str = "
 UPDATE PUBLIC.GROUP SET name = $2 WHERE id = $1
+";
+pub const SET_MESSAGE_DELETE_STMT: &str = "
+UPDATE PUBLIC.GROUP_MESSAGE SET DELETED = TRUE WHERE ID = $1
+";
+pub const FIND_GROUP_MESSAGE_BY_ID: &str = "
+SELECT     
+    GM.ID as ID,
+    GM.SENDER_ID AS SENDER_ID,
+    U.USERNAME AS USERNAME,
+    GM.CONTENT AS CONTENT,
+    GM.GROUP_ID AS GROUP_ID,
+    GM.DELETED AS DELETED,
+    GM.SENT_AT AS SENT_AT
+FROM PUBLIC.GROUP_MESSAGE GM 
+    JOIN PUBLIC.USER U ON U.ID = GM.SENDER_ID
+WHERE GM.ID = $1;
 ";

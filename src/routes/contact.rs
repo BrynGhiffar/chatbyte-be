@@ -53,16 +53,23 @@ pub struct RecentConversation {
     contact_id: i32,
     content: String,
     unread_count: i64,
+    deleted: bool
 }
 
 impl From<&ConversationRecentMessages> for RecentConversation {
     fn from(value: &ConversationRecentMessages) -> Self {
+        let content = if value.deleted { 
+            String::from("") 
+        } else {
+            value.last_message.clone() 
+        };
         RecentConversation {
             username: value.username.clone(),
             sent_at: value.sent_at.format("%H:%M").to_string(),
             contact_id: value.contact_id,
-            content: value.last_message.clone(),
+            content,
             unread_count: value.unread_count,
+            deleted: value.deleted
         }
     }
 }

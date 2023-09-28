@@ -7,7 +7,8 @@ pub struct Message {
     pub sender_id: i32,
     pub receiver_id: i32,
     pub content: String,
-    pub read: bool
+    pub read: bool,
+    pub deleted: bool,
 }
 
 #[derive(sqlx::FromRow)]
@@ -20,4 +21,5 @@ pub struct ConversationRecentMessages {
     pub last_message: String,
     pub unread_count: i64,
     pub username: String,
+    pub deleted: bool
 }

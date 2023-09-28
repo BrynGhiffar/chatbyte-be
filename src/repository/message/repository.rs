@@ -1,7 +1,7 @@
 use chrono::Local;
 use sqlx::{Pool, Postgres};
 
-use super::{Message, GET_MESSAGE_BETWEEN_USER_STMT, UPDATE_MESSAGE_READ_STMT, ConversationRecentMessages, CREATE_MESSAGE_STMT, GET_RECENT_MESSAGE_STMT};
+use super::{Message, GET_MESSAGE_BETWEEN_USER_STMT, UPDATE_MESSAGE_READ_STMT, ConversationRecentMessages, CREATE_MESSAGE_STMT, GET_RECENT_MESSAGE_STMT, DELETE_MESSAGE_STMT, FIND_MESSAGE_BY_ID_STMT};
 
 #[derive(Clone)]
 pub struct MessageRepository {
@@ -63,6 +63,29 @@ impl MessageRepository {
             .await
             .map_err(|e| e.to_string())
 
+    }
+
+    pub async fn find_message_by_id(
+        &self,
+        message_id: i32,
+    ) -> Result<Option<Message>, String> {
+        sqlx::query_as::<_, Message>(FIND_MESSAGE_BY_ID_STMT)
+            .bind(message_id)
+            .fetch_optional(&self.conn)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    pub async fn delete_message(
+        &self,
+        message_id: i32
+    ) -> Result<bool, String> {
+        sqlx::query(DELETE_MESSAGE_STMT)
+            .bind(message_id)
+            .execute(&self.conn)
+            .await
+            .map_err(|e| e.to_string())
+            .map(|r| r.rows_affected() == 1)
     }
 }
 

@@ -34,14 +34,19 @@ pub async fn get_messages(
         ;
     let messages = messages
         .into_iter()
-        .map(|m| ClientMessage {
-            id: m.id,
-            receiver_id: m.receiver_id,
-            sender_id: m.sender_id,
-            is_user: (uid == m.sender_id),
-            content: m.content,
-            time: m.sent_at.format("%H:%M").to_string(),
-            receiver_read: m.read,
+        .map(|m| {
+            let content = if m.deleted { String::from("") } else { m.content.clone() };
+
+            ClientMessage {
+                id: m.id,
+                receiver_id: m.receiver_id,
+                sender_id: m.sender_id,
+                is_user: (uid == m.sender_id),
+                deleted: m.deleted,
+                content,
+                time: m.sent_at.format("%H:%M").to_string(),
+                receiver_read: m.read,
+            }
         })
         .collect::<Vec<_>>();
     Ok(Success(messages))
@@ -89,4 +94,5 @@ pub struct ClientMessage {
     pub content: String,
     pub time: String,
     pub receiver_read: bool,
+    pub deleted: bool,
 }
