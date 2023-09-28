@@ -8,6 +8,7 @@ pub struct Message {
     pub receiver_id: i32,
     pub content: String,
     pub read: bool,
+    pub edited: bool,
     pub deleted: bool,
 }
 

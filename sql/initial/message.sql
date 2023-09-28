@@ -5,6 +5,7 @@ CREATE TABLE public.message (
     receiver_id integer NOT NULL,
     content text NOT NULL,
     read boolean DEFAULT false NOT NULL,
+    edited BOOLEAN DEFAULT FALSE NOT NULL,
     deleted BOOLEAN DEFAULT FALSE NOT NULL
 );
 

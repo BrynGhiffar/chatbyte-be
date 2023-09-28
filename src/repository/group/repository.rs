@@ -7,7 +7,7 @@ use super::{
     CREATE_GROUP_MESSAGE_STMT, CREATE_GROUP_STMT, DELETE_GROUP_STMT, FIND_ALL_GROUP_MESSAGE_STMT,
     FIND_GROUP_FOR_USER_STMT, FIND_GROUP_MEMBER_STMT, FIND_USER_GROUP_RECENT_STMT,
     GET_PROFILE_IMAGE_FOR_GROUP_STMT, READ_ALL_MESSAGE_STMT, REMOVE_USER_FROM_GROUP_STMT,
-    RENAME_GROUP_STMT, SET_PROFILE_IMAGE_FOR_GROUP_STMT, SET_MESSAGE_DELETE_STMT, FIND_GROUP_MESSAGE_BY_ID,
+    RENAME_GROUP_STMT, SET_PROFILE_IMAGE_FOR_GROUP_STMT, SET_MESSAGE_DELETE_STMT, FIND_GROUP_MESSAGE_BY_ID, EDIT_MESSAGE_BY_ID_STMT,
 };
 
 #[derive(Clone)]
@@ -171,6 +171,15 @@ impl GroupRepository {
         sqlx::query_as::<_, GroupMessage>(FIND_GROUP_MESSAGE_BY_ID)
             .bind(message_id)
             .fetch_optional(&self.conn)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    pub async fn edit_message_by_id(&self, message_id: i32, content: String) -> Result<GroupMessage, String> {
+        sqlx::query_as::<_, GroupMessage>(EDIT_MESSAGE_BY_ID_STMT)
+            .bind(message_id)
+            .bind(content)
+            .fetch_one(&self.conn)
             .await
             .map_err(|e| e.to_string())
     }

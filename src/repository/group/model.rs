@@ -63,6 +63,7 @@ pub struct GroupMessage {
     pub group_id: i32,
     pub content: String,
     pub sent_at: NaiveDateTime,
+    pub edited: bool,
     pub deleted: bool,
 }
 

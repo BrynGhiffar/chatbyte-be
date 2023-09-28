@@ -75,6 +75,7 @@ pub struct GroupMessageResponse {
     pub group_id: i32,
     pub content: String,
     pub sent_at: String,
+    pub edited: bool,
     pub deleted: bool
 }
 
@@ -189,6 +190,7 @@ async fn get_group_messages(
                     username: m.username.clone(),
                     sender_id: m.sender_id,
                     sent_at: m.sent_at.format("%H:%M").to_string(),
+                    edited: m.edited,
                     deleted: m.deleted
                 }
             })

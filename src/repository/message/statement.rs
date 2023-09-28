@@ -44,3 +44,8 @@ pub const FIND_MESSAGE_BY_ID_STMT: &str = "
         WHERE ID = $1
     LIMIT 1
 ";
+pub const EDIT_MESSAGE_BY_ID_STMT: &str = "
+UPDATE PUBLIC.MESSAGE
+    SET CONTENT = $2, EDITED = TRUE
+WHERE ID = $1 RETURNING *
+";

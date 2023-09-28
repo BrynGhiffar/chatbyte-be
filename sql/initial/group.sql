@@ -25,6 +25,7 @@ CREATE TABLE public.group_message(
     sender_id INTEGER NOT NULL,
     content TEXT NOT NULL,
     group_id INTEGER NOT NULL,
+    edited BOOLEAN DEFAULT FALSE NOT NULL,
     deleted BOOLEAN DEFAULT FALSE NOT NULL,
     CONSTRAINT group_message_sender_id FOREIGN KEY(sender_id) REFERENCES public.user(id),
     CONSTRAINT group_message_group_id FOREIGN KEY(group_id) REFERENCES public.group(id),

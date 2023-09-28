@@ -44,6 +44,7 @@ pub async fn get_messages(
                 is_user: (uid == m.sender_id),
                 deleted: m.deleted,
                 content,
+                edited: m.edited,
                 time: m.sent_at.format("%H:%M").to_string(),
                 receiver_read: m.read,
             }
@@ -94,5 +95,6 @@ pub struct ClientMessage {
     pub content: String,
     pub time: String,
     pub receiver_read: bool,
+    pub edited: bool,
     pub deleted: bool,
 }
