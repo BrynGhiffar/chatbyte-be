@@ -2,8 +2,7 @@ use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
     utility::{ApiResult, ApiSuccess::*, ApiError::*},
-    websocket::message::AppMessage,
-    websocket::server::WsRequest,
+    websocket::{message::AppMessage, WsRequest},
 };
 use actix_web::{
     web::{self, get, ServiceConfig},

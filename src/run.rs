@@ -14,6 +14,8 @@ pub async fn run() -> std::io::Result<()> {
     let (state, ws_server) = AppState::default().await;
     let ws_server = spawn(ws_server.run());
 
+
+
     let server = HttpServer::new(move || {
         let logger = Logger::default();
         let cors = Cors::permissive();
@@ -27,7 +29,9 @@ pub async fn run() -> std::io::Result<()> {
             .service(web::scope("/api/contacts").configure(contact_config))
             .service(web::scope("/api/user").configure(user_config))
             .service(web::scope("/api/group").configure(group_config))
-            .service(web::resource("/api/ws").route(web::get().to(websocket)))
+            .service(web::resource("/api/ws")
+                .route(web::get().to(websocket))
+            )
     });
 
     let port = 8080;

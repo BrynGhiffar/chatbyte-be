@@ -56,13 +56,13 @@ impl Session {
     }
 
     pub async fn handle_websocket_message(&self, msg: Option<Result<Message, ProtocolError>>) {
-        let Some(msg) = msg else { return; };
         let msg = match msg {
-            Ok(msg) => msg,
-            Err(e) => {
+            Some(Ok(msg)) => msg,
+            Some(Err(e)) => {
                 log::error!("{e}");
                 return;
-            }
+            },
+            None => return,
         };
         let res = match msg {
             Message::Text(msg) => self.app_tx.send(AppMessage::Message {
@@ -86,7 +86,6 @@ impl Session {
                 sess_tx: session_tx,
             })
             .unwrap();
-
         loop {
             let ws_source = ws_rx
                 .recv()

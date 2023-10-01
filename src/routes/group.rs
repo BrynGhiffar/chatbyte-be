@@ -4,7 +4,7 @@ use actix_web::{HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::middleware::{get_uid_from_header, VerifyToken};
-use crate::repository::group::{Group, GroupConversation};
+use crate::repository::group::{Group, GroupConversationRepositoryModel};
 use crate::utility::ApiError::*;
 use crate::utility::ApiSuccess::*;
 use crate::{app::AppState, utility::ApiResult};
@@ -39,7 +39,7 @@ async fn get_user_group(state: web::Data<AppState>, req: HttpRequest) -> ApiResu
 async fn get_user_group_recent(
     state: web::Data<AppState>,
     req: HttpRequest,
-) -> ApiResult<Vec<GroupConversation>> {
+) -> ApiResult<Vec<GroupConversationRepositoryModel>> {
     let user_id = get_uid_from_header(req).unwrap();
     let result = state.group_repository.find_user_group_recent(user_id).await;
     match result {

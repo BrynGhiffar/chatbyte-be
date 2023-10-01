@@ -1,9 +1,9 @@
 use chrono::Local;
 
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Executor};
 
 use super::{
-    Group, GroupConversation, GroupImage, GroupMessage, ADD_USER_TO_GROUP_STMT,
+    Group, GroupConversationRepositoryModel, GroupImage, GroupMessageRepositoryModel, ADD_USER_TO_GROUP_STMT,
     CREATE_GROUP_MESSAGE_STMT, CREATE_GROUP_STMT, DELETE_GROUP_STMT, FIND_ALL_GROUP_MESSAGE_STMT,
     FIND_GROUP_FOR_USER_STMT, FIND_GROUP_MEMBER_STMT, FIND_USER_GROUP_RECENT_STMT,
     GET_PROFILE_IMAGE_FOR_GROUP_STMT, READ_ALL_MESSAGE_STMT, REMOVE_USER_FROM_GROUP_STMT,
@@ -108,16 +108,33 @@ impl GroupRepository {
         group_id: i32,
         sender_id: i32,
         content: String,
-    ) -> Result<GroupMessage, String> {
+    ) -> Result<GroupMessageRepositoryModel, String> {
+        Self::create_group_message_with_executor(
+            &self.conn, 
+            group_id, 
+            sender_id, 
+            content
+        ).await
+    }
+
+    pub async fn create_group_message_with_executor<'a, T>(
+        exec: T,
+        group_id: i32,
+        sender_id: i32,
+        content: String,
+    ) -> Result<GroupMessageRepositoryModel, String>
+        where T: Executor<'a, Database = Postgres> 
+    {
         let sent_at = Local::now().naive_local();
-        sqlx::query_as::<_, GroupMessage>(CREATE_GROUP_MESSAGE_STMT)
+        sqlx::query_as::<_, GroupMessageRepositoryModel>(CREATE_GROUP_MESSAGE_STMT)
             .bind(group_id)
             .bind(sender_id)
             .bind(content)
             .bind(sent_at)
-            .fetch_one(&self.conn)
+            .fetch_one(exec)
             .await
             .map_err(|e| e.to_string())
+
     }
 
     pub async fn find_group_members(&self, group_id: i32) -> Result<Vec<i32>, String> {
@@ -129,8 +146,8 @@ impl GroupRepository {
             .map(|r| r.iter().map(|t| t.0).collect())
     }
 
-    pub async fn find_all_group_message(&self, group_id: i32) -> Result<Vec<GroupMessage>, String> {
-        sqlx::query_as::<_, GroupMessage>(FIND_ALL_GROUP_MESSAGE_STMT)
+    pub async fn find_all_group_message(&self, group_id: i32) -> Result<Vec<GroupMessageRepositoryModel>, String> {
+        sqlx::query_as::<_, GroupMessageRepositoryModel>(FIND_ALL_GROUP_MESSAGE_STMT)
             .bind(group_id)
             .fetch_all(&self.conn)
             .await
@@ -140,8 +157,8 @@ impl GroupRepository {
     pub async fn find_user_group_recent(
         &self,
         user_id: i32,
-    ) -> Result<Vec<GroupConversation>, String> {
-        sqlx::query_as::<_, GroupConversation>(FIND_USER_GROUP_RECENT_STMT)
+    ) -> Result<Vec<GroupConversationRepositoryModel>, String> {
+        sqlx::query_as::<_, GroupConversationRepositoryModel>(FIND_USER_GROUP_RECENT_STMT)
             .bind(user_id)
             .fetch_all(&self.conn)
             .await
@@ -167,16 +184,16 @@ impl GroupRepository {
             .map(|r| r.rows_affected() == 1)
     }
 
-    pub async fn find_message_by_id(&self, message_id: i32) -> Result<Option<GroupMessage>, String> {
-        sqlx::query_as::<_, GroupMessage>(FIND_GROUP_MESSAGE_BY_ID)
+    pub async fn find_message_by_id(&self, message_id: i32) -> Result<Option<GroupMessageRepositoryModel>, String> {
+        sqlx::query_as::<_, GroupMessageRepositoryModel>(FIND_GROUP_MESSAGE_BY_ID)
             .bind(message_id)
             .fetch_optional(&self.conn)
             .await
             .map_err(|e| e.to_string())
     }
 
-    pub async fn edit_message_by_id(&self, message_id: i32, content: String) -> Result<GroupMessage, String> {
-        sqlx::query_as::<_, GroupMessage>(EDIT_MESSAGE_BY_ID_STMT)
+    pub async fn edit_message_by_id(&self, message_id: i32, content: String) -> Result<GroupMessageRepositoryModel, String> {
+        sqlx::query_as::<_, GroupMessageRepositoryModel>(EDIT_MESSAGE_BY_ID_STMT)
             .bind(message_id)
             .bind(content)
             .fetch_one(&self.conn)

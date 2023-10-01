@@ -8,6 +8,7 @@ mod middleware;
 mod repository;
 mod utility;
 mod websocket;
+mod service;
 // use entities::{ prelude::*, * };
 
 #[actix_web::main]

@@ -2,12 +2,14 @@ use sqlx::postgres::PgPoolOptions;
 use std::fs::File;
 use std::io::prelude::*;
 
+use crate::repository::AttachmentRepository;
 use crate::repository::AuthRepository;
 use crate::repository::ContactRepository;
 use crate::repository::GroupRepository;
 use crate::repository::MessageRepository;
 use crate::repository::SessionRepository;
 use crate::repository::UserRepository;
+use crate::service::MessageService;
 use crate::websocket::SessionFactory;
 use crate::websocket::WsServer;
 
@@ -23,6 +25,7 @@ pub struct AppState {
     pub session_repository: SessionRepository,
     pub session_factory: SessionFactory,
     pub group_repository: GroupRepository,
+    pub attachment_repository: AttachmentRepository,
 }
 
 impl AppState {
@@ -46,8 +49,14 @@ impl AppState {
         let user_repository = UserRepository::new(sqlx_conn.clone());
         let session_repository = SessionRepository::new(sqlx_conn.clone());
         let group_repository = GroupRepository::new(sqlx_conn.clone());
+        let attachment_repository = AttachmentRepository::new(sqlx_conn.clone());
+        let message_service = MessageService::new(sqlx_conn.clone());
         let (ws_server, session_factory) =
-            WsServer::new(message_repository.clone(), group_repository.clone());
+            WsServer::new(
+                message_repository.clone(), 
+                group_repository.clone(),
+                message_service
+            );
         let app_state = AppState {
             env_jwt_secret,
             env_jwt_secret_mins,
@@ -59,6 +68,7 @@ impl AppState {
             session_factory,
             session_repository,
             group_repository,
+            attachment_repository
         };
         (app_state, ws_server)
     }

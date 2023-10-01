@@ -10,7 +10,7 @@ pub struct Group {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GroupConversationDetail {
+pub struct GroupConversationDetailRepositoryModel {
     pub username: String,
     pub sent_at: String,
     pub content: String,
@@ -19,14 +19,14 @@ pub struct GroupConversationDetail {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GroupConversation {
+pub struct GroupConversationRepositoryModel {
     pub group_id: i32,
     pub unread_message: i64,
     pub group_name: String,
-    pub detail: Option<GroupConversationDetail>,
+    pub detail: Option<GroupConversationDetailRepositoryModel>,
 }
 
-impl FromRow<'_, PgRow> for GroupConversation {
+impl FromRow<'_, PgRow> for GroupConversationRepositoryModel {
     fn from_row(row: &'_ PgRow) -> Result<Self, Error> {
         let content = row.try_get::<Option<String>, _>("content")?;
         let detail = if let Some(content) = content {
@@ -37,7 +37,7 @@ impl FromRow<'_, PgRow> for GroupConversation {
             } else { 
                 content
             };
-            Some(GroupConversationDetail {
+            Some(GroupConversationDetailRepositoryModel {
                 content,
                 username: row.try_get("username")?,
                 deleted,
@@ -56,7 +56,7 @@ impl FromRow<'_, PgRow> for GroupConversation {
 }
 
 #[derive(sqlx::FromRow, Serialize)]
-pub struct GroupMessage {
+pub struct GroupMessageRepositoryModel {
     pub id: i32,
     pub sender_id: i32,
     pub username: String,

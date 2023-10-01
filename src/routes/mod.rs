@@ -5,7 +5,9 @@ pub mod healthcheck;
 pub mod message;
 pub mod user;
 pub mod websocket;
+mod attachment;
 
+pub use attachment::*;
 pub use auth::*;
 pub use contact::*;
 pub use group::*;

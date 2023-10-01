@@ -2,144 +2,26 @@ use std::{collections::HashMap, str::FromStr};
 
 use crate::{
     repository::{
-        group::{GroupMessage, GroupRepository},
-        message::MessageRepository, Message,
+        group::GroupRepository,
+        message::MessageRepository,
     },
-    websocket::message::{AppMessage, AppRx, SessionMessage, SessionTx},
+    websocket::message::{AppMessage, AppRx, SessionMessage, SessionTx}, service::{MessageService, CreateDirectMessageModel, CreateAttachmentModel, DirectMessageModel, CreateGroupMessageModel},
 };
-use serde::{Deserialize, Serialize};
-use serde_json::Error;
-
-use super::session::SessionFactory;
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum WsRequest {
-    
-    #[serde(rename = "SEND_MESSAGE")]
-    #[serde(rename_all = "camelCase")]
-    SendMessage { receiver_uid: i32, message: String },
-    
-    #[serde(rename = "READ_MESSAGE")]
-    #[serde(rename_all = "camelCase")]
-    ReadMessage { receiver_uid: i32, sender_uid: i32 },
-    
-    #[serde(rename = "SEND_GROUP_MESSAGE")]
-    #[serde(rename_all = "camelCase")]
-    SendGroupMessage { group_id: i32, message: String },
-    
-    #[serde(rename = "DELETE_DIRECT_MESSAGE")]
-    #[serde(rename_all = "camelCase")]
-    DeleteDirectMessage { message_id: i32, },
-    
-    #[serde(rename = "DELETE_GROUP_MESSAGE")]
-    #[serde(rename_all = "camelCase")]
-    DeleteGroupMessage { message_id: i32 },
-    
-    #[serde(rename = "EDIT_DIRECT_MESSAGE")]
-    #[serde(rename_all = "camelCase")]
-    EditDirectMessage { message_id: i32, edited_content: String },
-
-    #[serde(rename = "EDIT_GROUP_MESSAGE")]
-    #[serde(rename_all = "camelCase")]
-    EditGroupMessage { message_id: i32, edited_content: String }
-}
-
-impl FromStr for WsRequest {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
-
-impl ToString for WsRequest {
-    fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(tag = "type")]
-enum WsResponse {
-    #[serde(rename = "MESSAGE_NOTIFICATION")]
-    #[serde(rename_all = "camelCase")]
-    MessageNotification {
-        id: i32,
-        sender_uid: i32,
-        receiver_uid: i32,
-        content: String,
-        is_user: bool,
-        sent_at: String,
-        receiver_read: bool,
-    },
-
-    #[serde(rename = "GROUP_MESSAGE_NOTIFICATION")]
-    #[serde(rename_all = "camelCase")]
-    GroupMessageNotification {
-        id: i32,
-        sender_id: i32,
-        username: String,
-        group_id: i32,
-        content: String,
-        sent_at: String,
-    },
-
-    #[serde(rename = "READ_NOTIFICATION")]
-    #[serde(rename_all = "camelCase")]
-    ReadNotification { sender_uid: i32, receiver_uid: i32 },
-
-    #[serde(rename = "ERROR_NOTIFICATION")]
-    ErrorNotification { message: String },
-
-    #[serde(rename = "DELETE_DIRECT_MESSAGE_NOTIFICATION")]
-    #[serde(rename_all = "camelCase")]
-    DeleteMessageNotification { contact_id: i32, message_id: i32 },
-
-    #[serde(rename = "DELETE_GROUP_MESSAGE_NOTIFICATION")]
-    #[serde(rename_all = "camelCase")]
-    DeleteGroupMessageNotification { group_id: i32, message_id: i32 },
-
-    #[serde(rename = "UPDATE_DIRECT_MESSAGE_NOTIFICATION")]
-    #[serde(rename_all = "camelCase")]
-    UpdateDirectMessageNotification { contact_id: i32, message_id: i32, content: String },
-
-    #[serde(rename = "UPDATE_GROUP_MESSAGE_NOTIFICATION")]
-    #[serde(rename_all = "camelCase")]
-    UpdateGroupMessageNotification { group_id: i32, message_id: i32, content: String }
-}
-
-impl ToString for WsResponse {
-    fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-}
-
-impl WsResponse {
-    fn from_group_message(message: GroupMessage) -> Self {
-        Self::GroupMessageNotification {
-            id: message.id,
-            sender_id: message.sender_id,
-            username: message.username,
-            group_id: message.group_id,
-            content: message.content,
-            sent_at: message.sent_at.format("%H:%M").to_string(),
-        }
-    }
-}
-
-use WsResponse::*;
+use super::{session::SessionFactory, WsRequest, WsResponse::{ self, *}, MessageAttachment, MessageNotificationAttachment };
 
 pub struct WsServer {
     user_storage: HashMap<i32, SessionTx>,
     app_rx: AppRx,
     message_repository: MessageRepository,
     group_repository: GroupRepository,
+    message_service: MessageService
 }
 
 impl WsServer {
     pub fn new(
         message_repository: MessageRepository,
         group_repository: GroupRepository,
+        message_service: MessageService
     ) -> (Self, SessionFactory) {
         let (app_tx, app_rx) = AppMessage::channel();
 
@@ -150,6 +32,7 @@ impl WsServer {
             app_rx,
             message_repository,
             group_repository,
+            message_service
         };
         let session_factory = SessionFactory { app_tx };
         (ws_server, session_factory)
@@ -171,13 +54,13 @@ impl WsServer {
         let Some(sess_tx) = self.user_storage.get(&user_id) else { return; };
         sess_tx
             .send(SessionMessage::Message(
-                WsResponse::ErrorNotification { message }.to_string(),
+                ErrorNotification { message }.to_string(),
             ))
             .unwrap();
     }
 
-    fn send_new_message_notification(&self, user_id: i32, msg: Message) {
-        let message = WsResponse::MessageNotification {
+    fn send_new_message_notification(&self, user_id: i32, msg: DirectMessageModel) {
+        let message = MessageNotification {
             id: msg.id,
             sender_uid: msg.sender_id,
             receiver_uid: msg.receiver_id,
@@ -185,26 +68,59 @@ impl WsServer {
             content: msg.content,
             sent_at: msg.sent_at.format("%H:%M").to_string(),
             receiver_read: msg.read,
+            attachments: msg.attachments
+                .iter()
+                .map(|at| MessageNotificationAttachment {
+                    id: at.id,
+                    file_type: at.file_type.clone()
+                }).collect()
         };
         self.send_session_message(user_id, message);
     }
 
     fn handle_read_message(&self, receiver_uid: i32, sender_uid: i32) {
-        let message = WsResponse::ReadNotification {
+        let message = ReadNotification {
             sender_uid,
             receiver_uid,
         };
         self.send_session_message(sender_uid, message);
     }
 
-    async fn handle_user_send_message(&self, sender_uid: i32, receiver_uid: i32, msg: String) {
-        let res = self
-            .message_repository
-            .insert_message(receiver_uid, sender_uid, msg.clone())
-            .await;
+    async fn handle_user_send_message(
+        &self, 
+        sender_uid: i32, 
+        receiver_uid: i32, 
+        msg: String,
+        attachments: Vec<MessageAttachment>
+    ) {
+        // let res = self
+        //     .message_repository
+        //     .insert_message(receiver_uid, sender_uid, msg.clone())
+        //     .await;
+        let mut create_attachments = Vec::<CreateAttachmentModel>::new();
+        for at in attachments {
+            let bytes = match at.content_as_bytes() {
+                Ok(b) => b,
+                Err(e) => {
+                    log::error!("{e}");
+                    continue;
+                }
+            };
+            create_attachments.push(CreateAttachmentModel { 
+                name: at.name.clone(), 
+                attachment: bytes 
+            });
+        }
+        let res = self.message_service.create_direct_message(CreateDirectMessageModel { 
+            receiver_id: receiver_uid, 
+            sender_id: sender_uid, 
+            content: msg, 
+            attachment: create_attachments 
+        }).await;
         let msg = match res {
             Ok(msg) => msg,
             Err(e) => {
+                log::error!("{e}");
                 self.send_session_error(sender_uid, e.to_string());
                 return;
             }
@@ -213,22 +129,51 @@ impl WsServer {
         self.send_new_message_notification(receiver_uid, msg);
     }
 
-    async fn handle_send_group_message(&self, sender_uid: i32, group_id: i32, message: String) {
+    async fn handle_send_group_message(
+        &self, 
+        sender_uid: i32, 
+        group_id: i32, 
+        message: String,
+        attachments: Vec<MessageAttachment>
+    ) {
         let result = self.group_repository.find_group_members(group_id).await;
         let member_ids = match result {
             Ok(ids) => ids,
-            _ => return,
+            Err(e) => {
+                log::error!("{e}");
+                return;
+            },
         };
         if !member_ids.contains(&sender_uid) {
+            log::error!("User with id '{sender_uid}' is not part of group with id '{group_id}'");
             return;
         }
-        let result = self
-            .group_repository
-            .create_group_message(group_id, sender_uid, message)
-            .await;
-        let message = match result {
+        let mut create_attachments = Vec::<CreateAttachmentModel>::new();
+        for at in attachments {
+            let bytes = match at.content_as_bytes() {
+                Ok(b) => b,
+                Err(e) => {
+                    log::error!("{e}");
+                    continue;
+                }
+            };
+            create_attachments.push(CreateAttachmentModel { 
+                name: at.name.clone(), 
+                attachment: bytes 
+            });
+        }
+        let res = self.message_service.create_group_message(CreateGroupMessageModel { 
+            group_id, 
+            sender_id: sender_uid, 
+            content: message, 
+            attachment: create_attachments
+        }).await;
+        let message = match res {
             Ok(m) => WsResponse::from_group_message(m),
-            _ => return,
+            Err(e) => {
+                log::error!("{e}");
+                return;
+            },
         };
         for mid in member_ids.iter() {
             self.send_session_message(*mid, message.clone());
@@ -240,13 +185,13 @@ impl WsServer {
         let message = match result {
             Ok(Some(message)) => message,
             Ok(None) => return,
-            Err(e) => return log::info!("{}", e),
+            Err(e) => return log::info!("{e}"),
         };
         if message.sender_id != sender_id { return; }
         let result = self.message_repository.delete_message(message_id).await;
         let success = match result {
             Ok(succ) => succ,
-            Err(e) => return log::info!("{}", e),
+            Err(e) => return log::error!("{e}"),
         };
         if !success { return; }
         let sender_message = WsResponse::DeleteMessageNotification { contact_id: message.receiver_id, message_id };
@@ -347,23 +292,44 @@ impl WsServer {
     }
 
     async fn session_message(&mut self, session_id: i32, msg: String) {
-        let Ok(message) = WsRequest::from_str(&msg) else { return; };
+        let message = match WsRequest::from_str(&msg) {
+            Ok(msg) => msg,
+            Err(e) => {
+                log::error!("parsing error: {e}");
+                return;
+            } 
+        };
         match message {
             WsRequest::SendMessage {
                 receiver_uid,
                 message,
+                attachments
             } => {
-                self.handle_user_send_message(session_id, receiver_uid, message)
-                    .await
+                self.handle_user_send_message(
+                    session_id, 
+                    receiver_uid, 
+                    message, 
+                    attachments
+                )
+                .await
             }
+            WsRequest::SendGroupMessage { 
+                group_id, 
+                message,
+                attachments
+            } => {
+                self.handle_send_group_message(
+                    session_id, 
+                    group_id, 
+                    message,
+                    attachments
+                )
+                .await
+            },
             WsRequest::ReadMessage {
                 receiver_uid,
                 sender_uid,
             } => self.handle_read_message(receiver_uid, sender_uid),
-            WsRequest::SendGroupMessage { group_id, message } => {
-                self.handle_send_group_message(session_id, group_id, message)
-                    .await
-            },
             WsRequest::DeleteDirectMessage { message_id } => {
                 self.handle_delete_direct_message(session_id, message_id).await
             },

@@ -2,10 +2,23 @@ use std::fmt::Debug;
 use std::fmt::Display;
 
 use actix_web::Responder;
+use actix_web::web::BytesMut;
+use actix_web::web::Payload;
 use actix_web::{body::BoxBody, HttpResponse, ResponseError};
+use futures_util::StreamExt;
 use sea_orm::DbErr;
 use serde::Serialize;
 use serde_json::json;
+
+pub async fn body_to_bytes(mut body: Payload) -> Vec<u8> {
+    let mut bytes = BytesMut::new();
+    while let Some(item) = body.next().await {
+        let item = item.unwrap();
+        bytes.extend_from_slice(&item);
+    }
+    let bytes = bytes.to_vec();
+    return bytes;
+}
 
 pub fn bad_request<T: ToString>(message: T) -> HttpResponse {
     HttpResponse::BadRequest().json(json!({

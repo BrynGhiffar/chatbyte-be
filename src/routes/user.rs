@@ -3,13 +3,12 @@ use std::collections::HashMap;
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
-    utility::{ApiError::*, ApiResult, ApiSuccess::*},
+    utility::{ApiError::*, ApiResult, ApiSuccess::*, body_to_bytes},
 };
 use actix_web::{
     web::{self, Json, ServiceConfig},
     HttpRequest, HttpResponse, Responder,
 };
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -54,15 +53,10 @@ pub async fn update_user(
 pub async fn upload_avatar(
     state: web::Data<AppState>,
     req: HttpRequest,
-    mut body: web::Payload,
+    body: web::Payload,
 ) -> ApiResult<&'static str> {
     let uid = get_uid_from_header(req).unwrap();
-    let mut bytes = web::BytesMut::new();
-    while let Some(item) = body.next().await {
-        let item = item.unwrap();
-        bytes.extend_from_slice(&item);
-    }
-    let bytes = bytes.to_vec();
+    let bytes = body_to_bytes(body).await;
     state
         .user_repository
         .upsert_user_profile(uid, bytes)

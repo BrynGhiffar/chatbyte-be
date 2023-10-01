@@ -7,6 +7,8 @@ DROP VIEW IF EXISTS public.last_message_group;
 DROP VIEW IF EXISTS public.username_group_message;
 
 -- Tables
+DROP TABLE IF EXISTS PUBLIC.ATTACHMENT_MESSAGE;
+DROP TABLE IF EXISTS PUBLIC.ATTACHMENT;
 DROP TABLE IF EXISTS public.group_message_read;
 DROP TABLE IF EXISTS public.group_message;
 DROP TABLE IF EXISTS public.group_member;
@@ -18,6 +20,7 @@ DROP TABLE IF EXISTS public.session;
 DROP TABLE IF EXISTS public.user;
 
 -- Sequences
+DROP SEQUENCE IF EXISTS PUBLIC.ATTACHMENT_ID_SEQ;
 DROP SEQUENCE IF EXISTS public.user_id_seq;
 DROP SEQUENCE IF EXISTS public.message_id_seq;
 DROP SEQUENCE IF EXISTS public.session_id_seq;

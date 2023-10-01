@@ -8,7 +8,7 @@ use crate::utility::ApiError::*;
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
-    repository::{contact::Contact, message::ConversationRecentMessages},
+    repository::{contact::Contact, message::ConversationRecentMessageRepositoryModel},
     utility::{ApiResult, ApiSuccess::*},
 };
 
@@ -56,8 +56,8 @@ pub struct RecentConversation {
     deleted: bool
 }
 
-impl From<&ConversationRecentMessages> for RecentConversation {
-    fn from(value: &ConversationRecentMessages) -> Self {
+impl From<&ConversationRecentMessageRepositoryModel> for RecentConversation {
+    fn from(value: &ConversationRecentMessageRepositoryModel) -> Self {
         let content = if value.deleted { 
             String::from("") 
         } else {
