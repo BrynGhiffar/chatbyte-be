@@ -15,13 +15,13 @@ pub async fn websocket(
     query: web::Query<WebsocketQuery>,
 ) -> Result<HttpResponse, Error> {
     let (res, ws_tx, ws_rx) = actix_ws::handle(&req, stream)?;
-    let WebsocketQuery { token } = query.into_inner();
-    let uid = match verify_token(token.clone()) {
-        Err(e) => return Ok(bad_request(e)),
-        Ok(uid) => uid,
-    };
-    let session = app.session_factory.create_session(token, uid, ws_tx);
-    spawn_local(session.run(ws_rx));
+    // let WebsocketQuery { token } = query.into_inner();
+    // let uid = match verify_token(token.clone()) {
+    //     Err(e) => return Ok(bad_request(e)),
+    //     Ok(uid) => uid,
+    // };
+    // let session = app.session_factory.create_session(token, uid, ws_tx);
+    // spawn_local(session.run(ws_rx));
     Ok(res)
 }
 

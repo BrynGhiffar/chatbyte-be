@@ -1,5 +1,8 @@
-use sqlx::{Pool, Postgres};
-use super::{USER_PROFILE_UPSERT_STATEMENT, UserAvatar, GET_USER_PROFILE};
+use super::UserAvatar;
+use super::GET_USER_PROFILE;
+use super::USER_PROFILE_UPSERT_STATEMENT;
+use sqlx::Pool;
+use sqlx::Postgres;
 
 #[derive(Clone)]
 pub struct UserRepository {
@@ -12,7 +15,6 @@ impl UserRepository {
     }
 
     pub async fn upsert_user_profile(&self, user_id: i32, image: Vec<u8>) -> Result<bool, String> {
-
         sqlx::query(USER_PROFILE_UPSERT_STATEMENT)
             .bind(user_id)
             .bind(image)

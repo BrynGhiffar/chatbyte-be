@@ -25,3 +25,10 @@ To run:
 
 Additional notes:
 * install dotenv with npm
+
+API Changes:
+- GET /api/group/message/{group_id} [DEPRECATED] -> GET /api/message/group?groupId={group_id}
+- GET /api/group [DEPRECATED] -> GET /api/contact/group
+- GET /api/group/recent -> GET /api/contact/group/recent
+- PUT /api/message/read?receiverUid=3 -> websocket
+- PUT /api/group/read/{group_id} -> websocket

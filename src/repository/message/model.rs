@@ -22,5 +22,5 @@ pub struct ConversationRecentMessageRepositoryModel {
     pub last_message: String,
     pub unread_count: i64,
     pub username: String,
-    pub deleted: bool
+    pub deleted: bool,
 }

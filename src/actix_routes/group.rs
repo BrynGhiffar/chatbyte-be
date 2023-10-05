@@ -4,7 +4,7 @@ use actix_web::{HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::middleware::{get_uid_from_header, VerifyToken};
-use crate::repository::group::{Group, GroupConversationRepositoryModel};
+use crate::repository::group::{GroupRepositoryModel, GroupConversationRepositoryModel};
 use crate::utility::ApiError::*;
 use crate::utility::ApiSuccess::*;
 use crate::{app::AppState, utility::ApiResult};
@@ -27,7 +27,7 @@ pub fn group_config(cfg: &mut ServiceConfig) {
     cfg.route("/image/{id}", web::get().to(get_group_profile_image));
 }
 
-async fn get_user_group(state: web::Data<AppState>, req: HttpRequest) -> ApiResult<Vec<Group>> {
+async fn get_user_group(state: web::Data<AppState>, req: HttpRequest) -> ApiResult<Vec<GroupRepositoryModel>> {
     let uid = get_uid_from_header(req).unwrap();
     let result = state.group_repository.find_groups_for_user(uid).await;
     match result {
@@ -76,7 +76,7 @@ pub struct GroupMessageResponse {
     pub content: String,
     pub sent_at: String,
     pub edited: bool,
-    pub deleted: bool
+    pub deleted: bool,
 }
 
 async fn create_group(
@@ -175,26 +175,25 @@ async fn get_group_messages(
         .await;
     match result {
         Ok(m) => Ok(Success(
-            m
-            .iter()
-            .map(|m| {
-                let content = if m.deleted { 
-                    String::from("") 
-                } else { 
-                    m.content.clone() 
-                };
-                GroupMessageResponse {
-                    id: m.id,
-                    group_id: m.group_id,
-                    content,
-                    username: m.username.clone(),
-                    sender_id: m.sender_id,
-                    sent_at: m.sent_at.format("%H:%M").to_string(),
-                    edited: m.edited,
-                    deleted: m.deleted
-                }
-            })
-            .collect(),
+            m.iter()
+                .map(|m| {
+                    let content = if m.deleted {
+                        String::from("")
+                    } else {
+                        m.content.clone()
+                    };
+                    GroupMessageResponse {
+                        id: m.id,
+                        group_id: m.group_id,
+                        content,
+                        username: m.username.clone(),
+                        sender_id: m.sender_id,
+                        sent_at: m.sent_at.format("%H:%M").to_string(),
+                        edited: m.edited,
+                        deleted: m.deleted,
+                    }
+                })
+                .collect(),
         )),
         Err(e) => Err(ServerError(e)),
     }

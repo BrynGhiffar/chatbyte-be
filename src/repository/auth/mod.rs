@@ -1,6 +1,6 @@
-mod repository;
 mod model;
+mod repository;
 mod statement;
-pub use repository::*;
 pub use model::*;
+pub use repository::*;
 pub use statement::*;

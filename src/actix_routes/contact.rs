@@ -1,14 +1,14 @@
+use crate::utility::ApiError::*;
 use actix_web::{
     web::{self, ServiceConfig},
     HttpRequest,
 };
 use serde::Serialize;
-use crate::utility::ApiError::*;
 
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
-    repository::{contact::Contact, message::ConversationRecentMessageRepositoryModel},
+    repository::{contact::ContactRepositoryModel, message::ConversationRecentMessageRepositoryModel},
     utility::{ApiResult, ApiSuccess::*},
 };
 
@@ -20,9 +20,10 @@ pub fn contact_config(cfg: &mut ServiceConfig) {
     );
 }
 
-async fn get_contacts(req: HttpRequest, state: web::Data<AppState>) -> ApiResult<Vec<Contact>> {
+async fn get_contacts(req: HttpRequest, state: web::Data<AppState>) -> ApiResult<Vec<ContactRepositoryModel>> {
     let uid = get_uid_from_header(req).unwrap();
-    let contacts = state.contact_repository
+    let contacts = state
+        .contact_repository
         .get_contacts(uid)
         .await
         .map_err(ServerError)?;
@@ -36,7 +37,8 @@ pub async fn recent_conversation(
 ) -> ApiResult<Vec<RecentConversation>> {
     let state = state.into_inner();
     let uid = get_uid_from_header(req).unwrap();
-    let res = state.message_repository
+    let res = state
+        .message_repository
         .get_recent_messages(uid)
         .await
         .map_err(ServerError)?;
@@ -53,15 +55,15 @@ pub struct RecentConversation {
     contact_id: i32,
     content: String,
     unread_count: i64,
-    deleted: bool
+    deleted: bool,
 }
 
 impl From<&ConversationRecentMessageRepositoryModel> for RecentConversation {
     fn from(value: &ConversationRecentMessageRepositoryModel) -> Self {
-        let content = if value.deleted { 
-            String::from("") 
+        let content = if value.deleted {
+            String::from("")
         } else {
-            value.last_message.clone() 
+            value.last_message.clone()
         };
         RecentConversation {
             username: value.username.clone(),
@@ -69,7 +71,7 @@ impl From<&ConversationRecentMessageRepositoryModel> for RecentConversation {
             contact_id: value.contact_id,
             content,
             unread_count: value.unread_count,
-            deleted: value.deleted
+            deleted: value.deleted,
         }
     }
 }
