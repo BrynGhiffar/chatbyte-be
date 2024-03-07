@@ -179,7 +179,12 @@ impl MessageService {
                     .await
                     .unwrap_or_default();
 
-                DirectMessageModel::combine(m.clone(), attachments) 
+                let mut res = DirectMessageModel::combine(m.clone(), attachments);
+                if res.deleted {
+                    res.content = "".to_string();
+                    res.attachments = vec![];
+                }
+                res
             })
             .collect::<Vec<_>>();
         let messages = join_all(messages).await;
@@ -214,7 +219,12 @@ impl MessageService {
                     .find_attachment_by_group_message_id(m.id)
                     .await
                     .unwrap_or_default();
-                GroupMessageModel::combine(m.clone(), attachments)
+                let mut res = GroupMessageModel::combine(m.clone(), attachments);
+                if res.deleted {
+                    res.content = "".to_string();
+                    res.attachments = vec![]
+                }
+                res
             })
             .collect::<Vec<_>>();
         let messages = join_all(messages).await;

@@ -1,10 +1,10 @@
-\i sql/initial/reset.sql
-\i sql/initial/user.sql
-\i sql/initial/message.sql
-\i sql/initial/user_avatar.sql
-\i sql/initial/session.sql
-\i sql/initial/group.sql
-\i sql/initial/views.sql
+\ir initial/reset.sql
+\ir initial/user.sql
+\ir initial/message.sql
+\ir initial/user_avatar.sql
+\ir initial/session.sql
+\ir initial/group.sql
+\ir initial/views.sql
 
 
 -- Mock Users
