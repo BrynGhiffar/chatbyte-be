@@ -98,7 +98,10 @@ impl AuthService {
 
         match res {
             Ok(_) => Ok(RegisterSuccess),
-            Err(e) => bail!(e),
+            Err(e) => {
+                log::error!("{e}");
+                bail!(e)
+            } ,
         }
     }
 

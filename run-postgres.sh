@@ -6,6 +6,7 @@ docker run \
     --name chat-app-db \
     -e POSTGRES_PASSWORD=password \
     -e PGDATA=/var/lib/postgresql/data/pgdata \
+    -p 5432:5432 \
     -v chat-app-db:/var/lib/postgresql/data \
     -v ./database:/docker-entrypoint-initdb.d \
     -d postgres

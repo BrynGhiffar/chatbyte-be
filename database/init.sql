@@ -5,6 +5,7 @@
 \ir initial/session.sql
 \ir initial/group.sql
 \ir initial/views.sql
+\ir initial/attachment.sql
 
 
 -- Mock Users
