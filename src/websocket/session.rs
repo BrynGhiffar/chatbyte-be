@@ -127,19 +127,19 @@ impl Session {
                 // from token checker
                 SessionSource::TokenChecker(_) => {
                     self.app_tx.send(AppMessage::Disconnect { session_id: self.session_id, }).unwrap();
-                    ws_tx.send(Message::Close(None)).await.unwrap();
+                    let _ = ws_tx.send(Message::Close(None)).await;
                     break;
                 },
                 // from server
                 SessionSource::SessionMessage(SessionMessage::CloseConnection) => {
                     token_checker.abort();
-                    ws_tx.send(Message::Close(None)).await.unwrap();
+                    let _ = ws_tx.send(Message::Close(None)).await;
                     break;
                 },
                 // from client
                 SessionSource::WebSocketClose => {
                     token_checker.abort();
-                    self.app_tx.send(AppMessage::Disconnect { session_id: self.session_id, }).unwrap();
+                    let _ = self.app_tx.send(AppMessage::Disconnect { session_id: self.session_id, }).unwrap();
                     break;
                 }
             };
