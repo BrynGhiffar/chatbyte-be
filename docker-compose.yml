@@ -3,7 +3,7 @@ services:
   chatbyte-be:
     build: .
     ports:
-      - 5000:9000
+      - 9000:9000
     environment:
       JWT_SECRET: khio3asAA
       JWT_EXPIRATION_MINS: 60
