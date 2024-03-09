@@ -76,7 +76,7 @@ pub async fn axum_run() {
         .layer(CorsLayer::permissive())
         ;
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    let addr = SocketAddr::from(([127, 0, 0, 1], 9000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 9000));
 
     let server = axum::Server::bind(&addr)
         .serve(app.into_make_service());

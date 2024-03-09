@@ -1,5 +1,5 @@
 [package]
-name = "vite-chat-app-be"
+name = "chatbyte-be"
 version = "0.1.0"
 edition = "2021"
 
