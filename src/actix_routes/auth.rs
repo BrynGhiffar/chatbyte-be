@@ -120,7 +120,8 @@ pub async fn register(
         return Err(password_too_short());
     }
 
-    let success = state.auth_repository
+    let success = state
+        .auth_repository
         .create_user(email, password)
         .await
         .map_err(ServerError)?;

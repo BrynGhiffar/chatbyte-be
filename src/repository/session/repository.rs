@@ -1,7 +1,10 @@
 use chrono::Local;
-use sqlx::{Pool, Postgres};
+use sqlx::Pool;
+use sqlx::Postgres;
 
-use super::{Session, CREATE_SESSION_STMT, FIND_SESSION_BY_USER_ID};
+use super::Session;
+use super::CREATE_SESSION_STMT;
+use super::FIND_SESSION_BY_USER_ID;
 
 #[derive(Clone)]
 pub struct SessionRepository {
@@ -31,10 +34,7 @@ impl SessionRepository {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn find_sessions_by_user_id(
-        &self,
-        user_id: i32,
-    ) -> Result<Vec<Session>, String> {
+    pub async fn find_sessions_by_user_id(&self, user_id: i32) -> Result<Vec<Session>, String> {
         sqlx::query_as::<_, Session>(FIND_SESSION_BY_USER_ID)
             .bind(user_id)
             .fetch_all(&self.conn)

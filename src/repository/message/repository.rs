@@ -1,7 +1,17 @@
 use chrono::Local;
-use sqlx::{Pool, Postgres, Executor};
+use sqlx::Executor;
+use sqlx::Pool;
+use sqlx::Postgres;
 
-use super::{MessageRepositoryModel, GET_MESSAGE_BETWEEN_USER_STMT, UPDATE_MESSAGE_READ_STMT, ConversationRecentMessageRepositoryModel, CREATE_MESSAGE_STMT, GET_RECENT_MESSAGE_STMT, DELETE_MESSAGE_STMT, FIND_MESSAGE_BY_ID_STMT, EDIT_MESSAGE_BY_ID_STMT};
+use super::ConversationRecentMessageRepositoryModel;
+use super::MessageRepositoryModel;
+use super::CREATE_MESSAGE_STMT;
+use super::DELETE_MESSAGE_STMT;
+use super::EDIT_MESSAGE_BY_ID_STMT;
+use super::FIND_MESSAGE_BY_ID_STMT;
+use super::GET_MESSAGE_BETWEEN_USER_STMT;
+use super::GET_RECENT_MESSAGE_STMT;
+use super::UPDATE_MESSAGE_READ_STMT;
 
 #[derive(Clone)]
 pub struct MessageRepository {
@@ -40,7 +50,7 @@ impl MessageRepository {
         &self,
         user_id: i32,
     ) -> Result<Vec<ConversationRecentMessageRepositoryModel>, String> {
-        sqlx::query_as::<_,ConversationRecentMessageRepositoryModel>(GET_RECENT_MESSAGE_STMT)
+        sqlx::query_as::<_, ConversationRecentMessageRepositoryModel>(GET_RECENT_MESSAGE_STMT)
             .bind(user_id)
             .fetch_all(&self.conn)
             .await
@@ -53,12 +63,7 @@ impl MessageRepository {
         sender_uid: i32,
         content: String,
     ) -> Result<MessageRepositoryModel, String> {
-        Self::insert_message_with_executor(
-            &self.conn, 
-            receiver_uid, 
-            sender_uid, 
-            content
-        ).await
+        Self::insert_message_with_executor(&self.conn, receiver_uid, sender_uid, content).await
     }
 
     pub async fn insert_message_with_executor<'a, T>(
@@ -66,8 +71,9 @@ impl MessageRepository {
         receiver_uid: i32,
         sender_uid: i32,
         content: String,
-    ) -> Result<MessageRepositoryModel, String> 
-        where T: Executor<'a, Database = Postgres>
+    ) -> Result<MessageRepositoryModel, String>
+    where
+        T: Executor<'a, Database = Postgres>,
     {
         let sent_at = Local::now().naive_local();
         sqlx::query_as::<_, MessageRepositoryModel>(CREATE_MESSAGE_STMT)
@@ -91,10 +97,7 @@ impl MessageRepository {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn delete_message(
-        &self,
-        message_id: i32
-    ) -> Result<bool, String> {
+    pub async fn delete_message(&self, message_id: i32) -> Result<bool, String> {
         sqlx::query(DELETE_MESSAGE_STMT)
             .bind(message_id)
             .execute(&self.conn)
@@ -106,7 +109,7 @@ impl MessageRepository {
     pub async fn edit_message_by_id(
         &self,
         message_id: i32,
-        content: String
+        content: String,
     ) -> Result<MessageRepositoryModel, String> {
         sqlx::query_as::<_, MessageRepositoryModel>(EDIT_MESSAGE_BY_ID_STMT)
             .bind(message_id)
@@ -116,4 +119,3 @@ impl MessageRepository {
             .map_err(|e| e.to_string())
     }
 }
-

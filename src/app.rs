@@ -9,7 +9,12 @@ use crate::repository::GroupRepository;
 use crate::repository::MessageRepository;
 use crate::repository::SessionRepository;
 use crate::repository::UserRepository;
+use crate::service::AttachmentService;
+use crate::service::AuthService;
+use crate::service::ContactService;
+use crate::service::GroupService;
 use crate::service::MessageService;
+use crate::service::UserService;
 use crate::websocket::SessionFactory;
 use crate::websocket::WsServer;
 
@@ -26,6 +31,12 @@ pub struct AppState {
     pub session_factory: SessionFactory,
     pub group_repository: GroupRepository,
     pub attachment_repository: AttachmentRepository,
+    pub auth_service: AuthService,
+    pub contact_service: ContactService,
+    pub message_service: MessageService,
+    pub group_service: GroupService,
+    pub user_service: UserService,
+    pub attachment_service: AttachmentService,
 }
 
 impl AppState {
@@ -51,12 +62,33 @@ impl AppState {
         let group_repository = GroupRepository::new(sqlx_conn.clone());
         let attachment_repository = AttachmentRepository::new(sqlx_conn.clone());
         let message_service = MessageService::new(sqlx_conn.clone());
-        let (ws_server, session_factory) =
-            WsServer::new(
-                message_repository.clone(), 
-                group_repository.clone(),
-                message_service
-            );
+        let auth_service = AuthService::new(
+            auth_repository.clone(),
+            env_jwt_secret.clone(),
+            env_jwt_secret_mins,
+        );
+        let contact_service = ContactService::new(
+            contact_repository.clone(),
+            message_repository.clone(),
+            group_repository.clone()
+        );
+        let (ws_server, session_factory) = WsServer::new(
+            message_repository.clone(),
+            group_repository.clone(),
+            message_service.clone(),
+        );
+        let group_service = GroupService::new(
+            sqlx_conn.clone(),
+            group_repository.clone(),
+            empty_profile.clone()
+        );
+        let user_service = UserService::new(
+            user_repository.clone(), 
+            auth_repository.clone()
+        );
+        let attachment_service = AttachmentService::new(
+            attachment_repository.clone()
+        );
         let app_state = AppState {
             env_jwt_secret,
             env_jwt_secret_mins,
@@ -68,7 +100,13 @@ impl AppState {
             session_factory,
             session_repository,
             group_repository,
-            attachment_repository
+            attachment_repository,
+            auth_service,
+            contact_service,
+            message_service,
+            group_service,
+            user_service,
+            attachment_service
         };
         (app_state, ws_server)
     }

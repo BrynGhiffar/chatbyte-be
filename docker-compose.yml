@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  chatbyte-be:
+    build: .
+    ports:
+      - 9000:9000
+    environment:
+      JWT_SECRET: khio3asAA
+      JWT_EXPIRATION_MINS: 60
+      DATABASE_URL: postgresql://postgres:password@chatbyte-db:5432/postgres
+      RUST_BACKTRACE: full
+  chatbyte-db:
+    image: postgres:16.2
+    environment:
+      POSTGRES_PASSWORD: password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - chatbyte-db:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+
+volumes:
+  chatbyte-db:

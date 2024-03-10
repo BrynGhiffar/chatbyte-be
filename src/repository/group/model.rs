@@ -1,23 +1,26 @@
 use chrono::NaiveDateTime;
 use serde::Serialize;
-use sqlx::{postgres::PgRow, Error, FromRow, Row};
+use sqlx::postgres::PgRow;
+use sqlx::Error;
+use sqlx::FromRow;
+use sqlx::Row;
 
-#[derive(sqlx::FromRow, Serialize)]
-pub struct Group {
+#[derive(sqlx::FromRow, Serialize, Clone)]
+pub struct GroupRepositoryModel {
     pub id: i32,
     pub name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupConversationDetailRepositoryModel {
     pub username: String,
-    pub sent_at: String,
+    pub sent_at: NaiveDateTime,
     pub content: String,
     pub deleted: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupConversationRepositoryModel {
     pub group_id: i32,
@@ -32,16 +35,12 @@ impl FromRow<'_, PgRow> for GroupConversationRepositoryModel {
         let detail = if let Some(content) = content {
             let sent_at: NaiveDateTime = row.try_get("sent_at")?;
             let deleted: bool = row.try_get("deleted")?;
-            let content = if deleted {
-                String::from("")
-            } else { 
-                content
-            };
+            let content = if deleted { String::from("") } else { content };
             Some(GroupConversationDetailRepositoryModel {
                 content,
                 username: row.try_get("username")?,
                 deleted,
-                sent_at: sent_at.format("%H:%M").to_string(),
+                sent_at: sent_at,
             })
         } else {
             None
@@ -55,7 +54,7 @@ impl FromRow<'_, PgRow> for GroupConversationRepositoryModel {
     }
 }
 
-#[derive(sqlx::FromRow, Serialize)]
+#[derive(sqlx::FromRow, Serialize, Clone)]
 pub struct GroupMessageRepositoryModel {
     pub id: i32,
     pub sender_id: i32,

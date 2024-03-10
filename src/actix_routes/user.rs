@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
-    utility::{ApiError::*, ApiResult, ApiSuccess::*, body_to_bytes},
+    utility::{body_to_bytes, ApiError::*, ApiResult, ApiSuccess::*},
 };
 use actix_web::{
     web::{self, Json, ServiceConfig},
@@ -30,7 +30,8 @@ pub async fn update_user(
                 "Username must at least be 3 characters long".to_string(),
             ));
         }
-        let updated = state.auth_repository
+        let updated = state
+            .auth_repository
             .update_username(uid, username)
             .await
             .map_err(BadRequest)?;

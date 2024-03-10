@@ -1,7 +1,7 @@
 use crate::{
     app::AppState,
     middleware::{get_uid_from_header, VerifyToken},
-    utility::{ApiResult, ApiSuccess::*, ApiError::*},
+    utility::{ApiError::*, ApiResult, ApiSuccess::*},
     websocket::{message::AppMessage, WsRequest},
 };
 use actix_web::{
@@ -29,12 +29,15 @@ pub async fn get_messages(
         .message_repository
         .get_message_between_users(uid, receiver_uid)
         .await
-        .map_err(ServerError)?
-        ;
+        .map_err(ServerError)?;
     let messages = messages
         .into_iter()
         .map(|m| {
-            let content = if m.deleted { String::from("") } else { m.content.clone() };
+            let content = if m.deleted {
+                String::from("")
+            } else {
+                m.content.clone()
+            };
 
             ClientMessage {
                 id: m.id,
@@ -60,9 +63,8 @@ pub async fn update_read_messages(
     let receiver_uid = query.receiver_uid;
     let uid = get_uid_from_header(req).unwrap();
     // since the session id
-    let message = WsRequest::ReadMessage {
-        receiver_uid: uid,
-        sender_uid: receiver_uid,
+    let message = WsRequest::ReadDirectMessage {
+        receiver_uid,
     };
     let message = AppMessage::Message {
         session_id: uid,

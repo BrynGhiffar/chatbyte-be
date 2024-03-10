@@ -1,6 +1,13 @@
-use sqlx::{Pool, Postgres};
+use sqlx::Pool;
+use sqlx::Postgres;
 
-use super::{User, FIND_USER_BY_EMAIL_STMT, FIND_USER_BY_ID_STMT, UPDATE_USERNAME_STMT, UPDATE_PASSWORD_STMT, UPDATE_EMAIL_STMT, CREATE_USER_STMT};
+use super::UserModelRepository;
+use super::CREATE_USER_STMT;
+use super::FIND_USER_BY_EMAIL_STMT;
+use super::FIND_USER_BY_ID_STMT;
+use super::UPDATE_EMAIL_STMT;
+use super::UPDATE_PASSWORD_STMT;
+use super::UPDATE_USERNAME_STMT;
 
 #[derive(Clone)]
 pub struct AuthRepository {
@@ -12,16 +19,16 @@ impl AuthRepository {
         AuthRepository { conn }
     }
 
-    pub async fn find_user_by_email(&self, email: String) -> Result<Option<User>, String> {
-        sqlx::query_as::<_, User>(FIND_USER_BY_EMAIL_STMT)
+    pub async fn find_user_by_email(&self, email: String) -> Result<Option<UserModelRepository>, String> {
+        sqlx::query_as::<_, UserModelRepository>(FIND_USER_BY_EMAIL_STMT)
             .bind(email)
             .fetch_optional(&self.conn)
             .await
             .map_err(|e| e.to_string())
     }
 
-    pub async fn find_user_by_id(&self, uid: i32) -> Result<Option<User>, String> {
-        sqlx::query_as::<_, User>(FIND_USER_BY_ID_STMT)
+    pub async fn find_user_by_id(&self, uid: i32) -> Result<Option<UserModelRepository>, String> {
+        sqlx::query_as::<_, UserModelRepository>(FIND_USER_BY_ID_STMT)
             .bind(uid)
             .fetch_optional(&self.conn)
             .await

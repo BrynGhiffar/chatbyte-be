@@ -1,6 +1,8 @@
-use sqlx::{Pool, Postgres};
+use sqlx::Pool;
+use sqlx::Postgres;
 
-use super::{GET_CONTACT_STMT, Contact};
+use super::ContactRepositoryModel;
+use super::GET_CONTACT_STMT;
 
 #[derive(Clone)]
 pub struct ContactRepository {
@@ -12,8 +14,8 @@ impl ContactRepository {
         ContactRepository { conn }
     }
 
-    pub async fn get_contacts(&self, user_id: i32) -> Result<Vec<Contact>, String> {
-        sqlx::query_as::<_, Contact>(GET_CONTACT_STMT)
+    pub async fn get_contacts(&self, user_id: i32) -> Result<Vec<ContactRepositoryModel>, String> {
+        sqlx::query_as::<_, ContactRepositoryModel>(GET_CONTACT_STMT)
             .bind(user_id)
             .fetch_all(&self.conn)
             .await

@@ -1,27 +1,37 @@
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
+use std::str::FromStr;
 
-use crate::{
-    repository::{
-        group::GroupRepository,
-        message::MessageRepository,
-    },
-    websocket::message::{AppMessage, AppRx, SessionMessage, SessionTx}, service::{MessageService, CreateDirectMessageModel, CreateAttachmentModel, DirectMessageModel, CreateGroupMessageModel},
-};
-use super::{session::SessionFactory, WsRequest, WsResponse::{ self, *}, MessageAttachment, MessageNotificationAttachment };
+use super::session::SessionFactory;
+use super::MessageAttachment;
+use super::MessageNotificationAttachment;
+use super::WsRequest;
+use super::WsResponse::*;
+use super::WsResponse::{self};
+use crate::repository::group::GroupRepository;
+use crate::repository::message::MessageRepository;
+use crate::service::CreateAttachmentModel;
+use crate::service::CreateDirectMessageModel;
+use crate::service::CreateGroupMessageModel;
+use crate::service::DirectMessageModel;
+use crate::service::MessageService;
+use crate::websocket::message::AppMessage;
+use crate::websocket::message::AppRx;
+use crate::websocket::message::SessionMessage;
+use crate::websocket::message::SessionTx;
 
 pub struct WsServer {
     user_storage: HashMap<i32, SessionTx>,
     app_rx: AppRx,
     message_repository: MessageRepository,
     group_repository: GroupRepository,
-    message_service: MessageService
+    message_service: MessageService,
 }
 
 impl WsServer {
     pub fn new(
         message_repository: MessageRepository,
         group_repository: GroupRepository,
-        message_service: MessageService
+        message_service: MessageService,
     ) -> (Self, SessionFactory) {
         let (app_tx, app_rx) = AppMessage::channel();
 
@@ -32,7 +42,7 @@ impl WsServer {
             app_rx,
             message_repository,
             group_repository,
-            message_service
+            message_service,
         };
         let session_factory = SessionFactory { app_tx };
         (ws_server, session_factory)
@@ -46,12 +56,18 @@ impl WsServer {
     }
 
     fn send_session_message(&self, user_id: i32, message: WsResponse) {
-        let Some(sess_tx) = self.user_storage.get(&user_id) else { return; };
-        sess_tx.send(SessionMessage::Message(message.to_string())).unwrap();
+        let Some(sess_tx) = self.user_storage.get(&user_id) else {
+            return;
+        };
+        sess_tx
+            .send(SessionMessage::Message(message.to_string()))
+            .unwrap();
     }
 
     fn send_session_error(&self, user_id: i32, message: String) {
-        let Some(sess_tx) = self.user_storage.get(&user_id) else { return; };
+        let Some(sess_tx) = self.user_storage.get(&user_id) else {
+            return;
+        };
         sess_tx
             .send(SessionMessage::Message(
                 ErrorNotification { message }.to_string(),
@@ -68,30 +84,48 @@ impl WsServer {
             content: msg.content,
             sent_at: msg.sent_at.format("%H:%M").to_string(),
             receiver_read: msg.read,
-            attachments: msg.attachments
+            attachments: msg
+                .attachments
                 .iter()
                 .map(|at| MessageNotificationAttachment {
                     id: at.id,
-                    file_type: at.file_type.clone()
-                }).collect()
+                    file_type: at.file_type.clone(),
+                })
+                .collect(),
         };
         self.send_session_message(user_id, message);
     }
 
-    fn handle_read_message(&self, receiver_uid: i32, sender_uid: i32) {
-        let message = ReadNotification {
+    async fn handle_read_message(&self, sender_uid: i32, receiver_uid: i32) {
+        let message = ReadDirectNotification {
             sender_uid,
             receiver_uid,
         };
+        let res = self.message_repository.update_message_read(receiver_uid, sender_uid).await;
+        match res {
+            Ok(_) => { }
+            Err(e) => { log::info!("{}", e); return; }
+        };
+        
+        
         self.send_session_message(sender_uid, message);
     }
 
+    async fn handle_group_read_message(&self, user_id: i32, group_id: i32) {
+        let res = self.group_repository.read_all_message(user_id, group_id).await;
+        match res {
+            Ok(succ) if succ => succ,
+            Ok(_) => return log::error!("failed to update group message read"),
+            Err(e) => return log::error!("{e}")
+        };
+    }
+
     async fn handle_user_send_message(
-        &self, 
-        sender_uid: i32, 
-        receiver_uid: i32, 
+        &self,
+        sender_uid: i32,
+        receiver_uid: i32,
         msg: String,
-        attachments: Vec<MessageAttachment>
+        attachments: Vec<MessageAttachment>,
     ) {
         // let res = self
         //     .message_repository
@@ -106,17 +140,20 @@ impl WsServer {
                     continue;
                 }
             };
-            create_attachments.push(CreateAttachmentModel { 
-                name: at.name.clone(), 
-                attachment: bytes 
+            create_attachments.push(CreateAttachmentModel {
+                name: at.name.clone(),
+                attachment: bytes,
             });
         }
-        let res = self.message_service.create_direct_message(CreateDirectMessageModel { 
-            receiver_id: receiver_uid, 
-            sender_id: sender_uid, 
-            content: msg, 
-            attachment: create_attachments 
-        }).await;
+        let res = self
+            .message_service
+            .create_direct_message(CreateDirectMessageModel {
+                receiver_id: receiver_uid,
+                sender_id: sender_uid,
+                content: msg,
+                attachment: create_attachments,
+            })
+            .await;
         let msg = match res {
             Ok(msg) => msg,
             Err(e) => {
@@ -130,11 +167,11 @@ impl WsServer {
     }
 
     async fn handle_send_group_message(
-        &self, 
-        sender_uid: i32, 
-        group_id: i32, 
+        &self,
+        sender_uid: i32,
+        group_id: i32,
         message: String,
-        attachments: Vec<MessageAttachment>
+        attachments: Vec<MessageAttachment>,
     ) {
         let result = self.group_repository.find_group_members(group_id).await;
         let member_ids = match result {
@@ -142,7 +179,7 @@ impl WsServer {
             Err(e) => {
                 log::error!("{e}");
                 return;
-            },
+            }
         };
         if !member_ids.contains(&sender_uid) {
             log::error!("User with id '{sender_uid}' is not part of group with id '{group_id}'");
@@ -157,23 +194,26 @@ impl WsServer {
                     continue;
                 }
             };
-            create_attachments.push(CreateAttachmentModel { 
-                name: at.name.clone(), 
-                attachment: bytes 
+            create_attachments.push(CreateAttachmentModel {
+                name: at.name.clone(),
+                attachment: bytes,
             });
         }
-        let res = self.message_service.create_group_message(CreateGroupMessageModel { 
-            group_id, 
-            sender_id: sender_uid, 
-            content: message, 
-            attachment: create_attachments
-        }).await;
+        let res = self
+            .message_service
+            .create_group_message(CreateGroupMessageModel {
+                group_id,
+                sender_id: sender_uid,
+                content: message,
+                attachment: create_attachments,
+            })
+            .await;
         let message = match res {
             Ok(m) => WsResponse::from_group_message(m),
             Err(e) => {
                 log::error!("{e}");
                 return;
-            },
+            }
         };
         for mid in member_ids.iter() {
             self.send_session_message(*mid, message.clone());
@@ -187,15 +227,25 @@ impl WsServer {
             Ok(None) => return,
             Err(e) => return log::info!("{e}"),
         };
-        if message.sender_id != sender_id { return; }
+        if message.sender_id != sender_id {
+            return;
+        }
         let result = self.message_repository.delete_message(message_id).await;
         let success = match result {
             Ok(succ) => succ,
             Err(e) => return log::error!("{e}"),
         };
-        if !success { return; }
-        let sender_message = WsResponse::DeleteMessageNotification { contact_id: message.receiver_id, message_id };
-        let receiver_message = WsResponse::DeleteMessageNotification { contact_id: message.sender_id, message_id };
+        if !success {
+            return;
+        }
+        let sender_message = WsResponse::DeleteMessageNotification {
+            contact_id: message.receiver_id,
+            message_id,
+        };
+        let receiver_message = WsResponse::DeleteMessageNotification {
+            contact_id: message.sender_id,
+            message_id,
+        };
         self.send_session_message(message.sender_id, sender_message);
         self.send_session_message(message.receiver_id, receiver_message);
     }
@@ -208,86 +258,122 @@ impl WsServer {
             Ok(None) => return,
             Err(e) => return log::info!("{}", e),
         };
-        if message.sender_id != sender_id { return; }
-        let result = self.group_repository.set_message_to_delete(message_id).await;
+        if message.sender_id != sender_id {
+            return;
+        }
+        let result = self
+            .group_repository
+            .set_message_to_delete(message_id)
+            .await;
         let success = match result {
             Ok(succ) => succ,
-            Err(e) => return log::info!("{e}")
+            Err(e) => return log::info!("{e}"),
         };
-        if !success { return; }
-        let result = self.group_repository.find_group_members(message.group_id).await;
+        if !success {
+            return;
+        }
+        let result = self
+            .group_repository
+            .find_group_members(message.group_id)
+            .await;
         let members = match result {
             Ok(mems) => mems,
-            Err(e) => return log::info!("{e}")
+            Err(e) => return log::info!("{e}"),
         };
         for user_id in members {
-            self.send_session_message(user_id, DeleteGroupMessageNotification { 
-                group_id: message.group_id, 
-                message_id: message.id 
-            });
+            self.send_session_message(
+                user_id,
+                DeleteGroupMessageNotification {
+                    group_id: message.group_id,
+                    message_id: message.id,
+                },
+            );
         }
     }
 
-    async fn handle_edit_direct_message(&self, user_id: i32, message_id: i32, edited_content: String) {
-        let result = self.message_repository
-            .find_message_by_id(message_id)
-            .await;
+    async fn handle_edit_direct_message(
+        &self,
+        user_id: i32,
+        message_id: i32,
+        edited_content: String,
+    ) {
+        let result = self.message_repository.find_message_by_id(message_id).await;
         let message = match result {
             Ok(Some(mess)) => mess,
             Ok(None) => return,
             Err(e) => return log::error!("{e}"),
         };
-        if message.sender_id != user_id { return; }
-        let result = self.message_repository
+        if message.sender_id != user_id {
+            return;
+        }
+        let result = self
+            .message_repository
             .edit_message_by_id(message_id, edited_content.clone())
             .await;
         let message = match result {
             Ok(mess) => mess,
-            Err(e) => return log::error!("{e}")
+            Err(e) => return log::error!("{e}"),
         };
 
-        self.send_session_message(message.sender_id, UpdateDirectMessageNotification { 
-            contact_id: message.receiver_id, 
-            message_id, 
-            content: edited_content.clone()
-        });
+        self.send_session_message(
+            message.sender_id,
+            UpdateDirectMessageNotification {
+                contact_id: message.receiver_id,
+                message_id,
+                content: edited_content.clone(),
+            },
+        );
 
-        self.send_session_message(message.receiver_id, UpdateDirectMessageNotification { 
-            contact_id: message.sender_id, 
-            message_id, 
-            content: edited_content.clone() 
-        });
-
+        self.send_session_message(
+            message.receiver_id,
+            UpdateDirectMessageNotification {
+                contact_id: message.sender_id,
+                message_id,
+                content: edited_content.clone(),
+            },
+        );
     }
 
-    async fn handle_edit_group_message(&self, user_id: i32, message_id: i32, edited_content: String) {
-        let result = self.group_repository
-            .find_message_by_id(message_id)
-            .await;
+    async fn handle_edit_group_message(
+        &self,
+        user_id: i32,
+        message_id: i32,
+        edited_content: String,
+    ) {
+        let result = self.group_repository.find_message_by_id(message_id).await;
         let message = match result {
             Ok(Some(mess)) => mess,
             Ok(None) => return,
-            Err(e) => return log::error!("{e}")
+            Err(e) => return log::error!("{e}"),
         };
-        if message.sender_id != user_id { return; }
-        let result = self.group_repository
+        if message.sender_id != user_id {
+            return;
+        }
+        let result = self
+            .group_repository
             .edit_message_by_id(message_id, edited_content.clone())
             .await;
         let _ = match result {
             Ok(mess) => mess,
-            Err(e) => return log::error!("{e}")
+            Err(e) => return log::error!("{e}"),
         };
-        let result = self.group_repository.find_group_members(message.group_id).await;
+        let result = self
+            .group_repository
+            .find_group_members(message.group_id)
+            .await;
         let members = match result {
             Ok(mem) => mem,
-            Err(e) => return log::error!("{e}")
+            Err(e) => return log::error!("{e}"),
         };
         for member_id in members {
-            self.send_session_message(member_id, UpdateGroupMessageNotification { 
-                group_id: message.group_id, 
-                message_id, 
-                content: edited_content.clone() 
-            });
+            self.send_session_message(
+                member_id,
+                UpdateGroupMessageNotification {
+                    group_id: message.group_id,
+                    message_id,
+                    content: edited_content.clone(),
+                },
+            );
         }
     }
 
@@ -297,50 +383,54 @@ impl WsServer {
             Err(e) => {
                 log::error!("parsing error: {e}");
                 return;
-            } 
+            }
         };
         match message {
             WsRequest::SendMessage {
                 receiver_uid,
                 message,
-                attachments
+                attachments,
             } => {
-                self.handle_user_send_message(
-                    session_id, 
-                    receiver_uid, 
-                    message, 
-                    attachments
-                )
-                .await
+                self.handle_user_send_message(session_id, receiver_uid, message, attachments)
+                    .await
             }
-            WsRequest::SendGroupMessage { 
-                group_id, 
+            WsRequest::SendGroupMessage {
+                group_id,
                 message,
-                attachments
+                attachments,
             } => {
-                self.handle_send_group_message(
-                    session_id, 
-                    group_id, 
-                    message,
-                    attachments
-                )
-                .await
-            },
-            WsRequest::ReadMessage {
+                self.handle_send_group_message(session_id, group_id, message, attachments)
+                    .await
+            }
+            WsRequest::ReadDirectMessage {
                 receiver_uid,
-                sender_uid,
-            } => self.handle_read_message(receiver_uid, sender_uid),
+            } => {
+                self.handle_read_message(receiver_uid, session_id).await
+            },
+            WsRequest::ReadGroupMessage { group_id } => {
+                self.handle_group_read_message(session_id, group_id).await
+            },
             WsRequest::DeleteDirectMessage { message_id } => {
-                self.handle_delete_direct_message(session_id, message_id).await
-            },
+                self.handle_delete_direct_message(session_id, message_id)
+                    .await
+            }
             WsRequest::DeleteGroupMessage { message_id } => {
-                self.handle_delete_group_message(session_id, message_id).await
-            },
-            WsRequest::EditDirectMessage { message_id, edited_content } => {
-                self.handle_edit_direct_message(session_id, message_id, edited_content).await
-            },
-            WsRequest::EditGroupMessage { message_id, edited_content } => {
-                self.handle_edit_group_message(session_id, message_id, edited_content).await
+                self.handle_delete_group_message(session_id, message_id)
+                    .await
+            }
+            WsRequest::EditDirectMessage {
+                message_id,
+                edited_content,
+            } => {
+                self.handle_edit_direct_message(session_id, message_id, edited_content)
+                    .await
+            }
+            WsRequest::EditGroupMessage {
+                message_id,
+                edited_content,
+            } => {
+                self.handle_edit_group_message(session_id, message_id, edited_content)
+                    .await
             }
         };
     }
