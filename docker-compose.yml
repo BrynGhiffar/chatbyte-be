@@ -9,6 +9,7 @@ services:
       JWT_EXPIRATION_MINS: 60
       DATABASE_URL: postgresql://postgres:password@chatbyte-db:5432/postgres
       RUST_BACKTRACE: full
+      PORT: 9000
   chatbyte-db:
     image: postgres:16.2
     environment:

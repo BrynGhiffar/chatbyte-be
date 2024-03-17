@@ -1,3 +1,4 @@
+use std::env;
 use std::net::SocketAddr;
 
 use crate::actix_routes::auth_config;
@@ -61,8 +62,10 @@ pub async fn run() -> std::io::Result<()> {
 pub async fn axum_run() {
     let (state, ws_server) = AppState::default().await;
     let ws_server = spawn(ws_server.run());
-
-
+    let port: u16 = env::var("PORT")
+        .expect("PORT environment variable undefined")
+        .parse()
+        .expect("Expect port number to be an integer");
 
     let app = Router::new()
         .route("/api/healthcheck", get(routes::healthcheck))
@@ -76,10 +79,14 @@ pub async fn axum_run() {
         .layer(CorsLayer::permissive())
         ;
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    let addr = SocketAddr::from(([0, 0, 0, 0], 9000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+
+    log::info!("Chatbyte BE running on http://0.0.0.0:{port}");
+    log::info!("Healthcheck: http://0.0.0.0:{port}/api/healthcheck");
 
     let server = axum::Server::bind(&addr)
         .serve(app.into_make_service());
+
     
     let _ = join!(ws_server, server);
 }
