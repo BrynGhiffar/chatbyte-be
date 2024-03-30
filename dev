@@ -1,0 +1,4 @@
+#!/usr/bin/sh
+
+
+dotenv -e .env -- cargo run
