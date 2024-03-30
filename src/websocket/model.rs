@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use base64::engine::general_purpose;
 use base64::Engine;
+use chrono::NaiveDateTime;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Error;
@@ -104,7 +105,7 @@ pub enum WsResponse {
         receiver_uid: i32,
         content: String,
         is_user: bool,
-        sent_at: String,
+        sent_at: NaiveDateTime,
         receiver_read: bool,
         attachments: Vec<MessageNotificationAttachment>,
     },
@@ -117,7 +118,7 @@ pub enum WsResponse {
         username: String,
         group_id: i32,
         content: String,
-        sent_at: String,
+        sent_at: NaiveDateTime,
         attachments: Vec<MessageNotificationAttachment>,
     },
 
@@ -167,7 +168,7 @@ impl WsResponse {
             username: message.username,
             group_id: message.group_id,
             content: message.content,
-            sent_at: message.sent_at.format("%H:%M").to_string(),
+            sent_at: message.sent_at,
             attachments: message
                 .attachments
                 .iter()

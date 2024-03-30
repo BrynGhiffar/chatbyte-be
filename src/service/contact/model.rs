@@ -37,7 +37,6 @@ pub struct DirectConversation {
     pub unread_count: i64,
     pub username: String,
     pub deleted: bool,
-    #[serde(serialize_with = "crate::utility::sent_at_date_format")]
     pub sent_at: NaiveDateTime,
 }
 
@@ -92,7 +91,6 @@ pub struct GroupConversation {
 #[serde(rename_all = "camelCase")]
 pub struct GroupConversationDetail {
     pub username: String,
-    #[serde(serialize_with = "crate::utility::sent_at_date_format")]
     pub sent_at: NaiveDateTime,
     pub content: String,
     pub deleted: bool 

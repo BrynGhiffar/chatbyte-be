@@ -1,4 +1,3 @@
-use chrono::Local;
 use sqlx::Executor;
 use sqlx::Pool;
 use sqlx::Postgres;
@@ -75,12 +74,10 @@ impl MessageRepository {
     where
         T: Executor<'a, Database = Postgres>,
     {
-        let sent_at = Local::now().naive_local();
         sqlx::query_as::<_, MessageRepositoryModel>(CREATE_MESSAGE_STMT)
             .bind(sender_uid)
             .bind(receiver_uid)
             .bind(content)
-            .bind(sent_at)
             .fetch_one(exec)
             .await
             .map_err(|e| e.to_string())

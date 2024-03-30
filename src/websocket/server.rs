@@ -82,7 +82,7 @@ impl WsServer {
             receiver_uid: msg.receiver_id,
             is_user: user_id == msg.sender_id,
             content: msg.content,
-            sent_at: msg.sent_at.format("%H:%M").to_string(),
+            sent_at: msg.sent_at,
             receiver_read: msg.read,
             attachments: msg
                 .attachments

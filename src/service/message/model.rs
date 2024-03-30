@@ -27,7 +27,6 @@ pub struct GroupMessageModel {
     pub username: String,
     pub group_id: i32,
     pub content: String,
-    #[serde(serialize_with = "crate::utility::sent_at_date_format")]
     pub sent_at: NaiveDateTime,
     pub edited: bool,
     pub deleted: bool,
@@ -95,7 +94,6 @@ pub struct CreateDirectMessageModel {
 #[serde(rename_all = "camelCase")]
 pub struct DirectMessageModel {
     pub id: i32,
-    #[serde(serialize_with = "crate::utility::sent_at_date_format")]
     pub sent_at: NaiveDateTime,
     pub sender_id: i32,
     pub receiver_id: i32,

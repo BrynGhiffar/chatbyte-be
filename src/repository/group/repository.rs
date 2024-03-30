@@ -177,12 +177,10 @@ impl GroupRepository {
     where
         T: Executor<'a, Database = Postgres>,
     {
-        let sent_at = Local::now().naive_local();
         sqlx::query_as::<_, GroupMessageRepositoryModel>(CREATE_GROUP_MESSAGE_STMT)
             .bind(group_id)
             .bind(sender_id)
             .bind(content)
-            .bind(sent_at)
             .fetch_one(exec)
             .await
             .map_err(|e| e.to_string())
