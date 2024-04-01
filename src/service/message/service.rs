@@ -25,7 +25,7 @@ pub struct MessageService {
     conn: Pool<Postgres>,
     message_repository: MessageRepository,
     group_repository: GroupRepository,
-    attachment_repository: AttachmentRepository
+    attachment_repository: AttachmentRepository,
 }
 
 impl MessageService {
@@ -37,7 +37,7 @@ impl MessageService {
             conn,
             message_repository,
             group_repository,
-            attachment_repository
+            attachment_repository,
         }
     }
 
@@ -162,19 +162,19 @@ impl MessageService {
         sender_id: i32,
         receiver_id: i32,
     ) -> Result<Vec<DirectMessageModel>, anyhow::Error> {
-        let res = self.message_repository
-            .get_message_between_users(
-                sender_id, 
-                receiver_id
-            )
+        let res = self
+            .message_repository
+            .get_message_between_users(sender_id, receiver_id)
             .await;
         let messages = match res {
             Ok(msg) => msg,
-            Err(e) => bail!(e)
+            Err(e) => bail!(e),
         };
-        let messages = messages.iter()
-            .map(|m| async { 
-                let attachments = self.attachment_repository
+        let messages = messages
+            .iter()
+            .map(|m| async {
+                let attachments = self
+                    .attachment_repository
                     .find_attachment_by_direct_message_id(m.id)
                     .await
                     .unwrap_or_default();
@@ -191,31 +191,29 @@ impl MessageService {
         Ok(messages)
     }
 
-
     pub async fn find_group_message(
         &self,
         user_id: i32,
-        group_id: i32
+        group_id: i32,
     ) -> Result<Vec<GroupMessageModel>, anyhow::Error> {
         let res = self.group_repository.find_group_members(group_id).await;
         let members = match res {
             Ok(gm) => gm,
-            Err(e) => bail!(e)
+            Err(e) => bail!(e),
         };
         if !members.contains(&user_id) {
             bail!("User is not in group");
         }
-        let res = self
-            .group_repository
-            .find_all_group_message(group_id)
-            .await;
+        let res = self.group_repository.find_all_group_message(group_id).await;
         let messages = match res {
             Ok(msg) => msg,
-            Err(e) => bail!(e)
+            Err(e) => bail!(e),
         };
-        let messages = messages.iter()
+        let messages = messages
+            .iter()
             .map(|m| async {
-                let attachments = self.attachment_repository
+                let attachments = self
+                    .attachment_repository
                     .find_attachment_by_group_message_id(m.id)
                     .await
                     .unwrap_or_default();
@@ -230,7 +228,6 @@ impl MessageService {
         let messages = join_all(messages).await;
         Ok(messages)
     }
-
 }
 
 pub fn detect_file_type(content: &[u8]) -> Result<AttachmentFileType, String> {

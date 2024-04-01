@@ -16,17 +16,13 @@ pub struct DirectContact {
 
 impl From<&ContactRepositoryModel> for DirectContact {
     fn from(value: &ContactRepositoryModel) -> Self {
-        Self { 
-            id: value.id, 
-            email: value.email.clone(), 
-            username: value.username.clone() 
+        Self {
+            id: value.id,
+            email: value.email.clone(),
+            username: value.username.clone(),
         }
     }
 }
-
-
-
-
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,21 +38,17 @@ pub struct DirectConversation {
 
 impl From<&ConversationRecentMessageRepositoryModel> for DirectConversation {
     fn from(value: &ConversationRecentMessageRepositoryModel) -> Self {
-        Self { 
-            id: value.id, 
-            contact_id: value.contact_id, 
-            last_message: value.last_message.clone(), 
-            unread_count: value.unread_count, 
-            username: value.username.clone(), 
-            deleted: value.deleted, 
-            sent_at: value.sent_at.clone() 
+        Self {
+            id: value.id,
+            contact_id: value.contact_id,
+            last_message: value.last_message.clone(),
+            unread_count: value.unread_count,
+            username: value.username.clone(),
+            deleted: value.deleted,
+            sent_at: value.sent_at.clone(),
         }
     }
 }
-
-
-
-
 
 #[derive(Serialize)]
 pub struct GroupContact {
@@ -77,14 +69,13 @@ impl From<&GroupRepositoryModel> for GroupContact {
     }
 }
 
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupConversation {
     pub group_id: i32,
     pub unread_message: i64,
     pub group_name: String,
-    pub detail: Option<GroupConversationDetail>
+    pub detail: Option<GroupConversationDetail>,
 }
 
 #[derive(Serialize)]
@@ -93,22 +84,24 @@ pub struct GroupConversationDetail {
     pub username: String,
     pub sent_at: NaiveDateTime,
     pub content: String,
-    pub deleted: bool 
+    pub deleted: bool,
 }
 
 impl From<GroupConversationDetailRepositoryModel> for GroupConversationDetail {
-    fn from(GroupConversationDetailRepositoryModel { 
-        username, 
-        sent_at, 
-        content, 
-        deleted 
-    }: GroupConversationDetailRepositoryModel) -> Self {
-        Self { 
-            username, 
-            sent_at, 
-            content, 
-            deleted 
-        }    
+    fn from(
+        GroupConversationDetailRepositoryModel {
+            username,
+            sent_at,
+            content,
+            deleted,
+        }: GroupConversationDetailRepositoryModel
+    ) -> Self {
+        Self {
+            username,
+            sent_at,
+            content,
+            deleted,
+        }
     }
 }
 
@@ -119,17 +112,19 @@ impl From<&GroupConversationRepositoryModel> for GroupConversation {
 }
 
 impl From<GroupConversationRepositoryModel> for GroupConversation {
-    fn from(GroupConversationRepositoryModel { 
-        group_id, 
-        unread_message, 
-        group_name, 
-        detail 
-    }: GroupConversationRepositoryModel) -> Self {
-        Self { 
-            group_id, 
-            unread_message, 
-            group_name, 
-            detail: detail.map(GroupConversationDetail::from)
+    fn from(
+        GroupConversationRepositoryModel {
+            group_id,
+            unread_message,
+            group_name,
+            detail,
+        }: GroupConversationRepositoryModel
+    ) -> Self {
+        Self {
+            group_id,
+            unread_message,
+            group_name,
+            detail: detail.map(GroupConversationDetail::from),
         }
     }
 }

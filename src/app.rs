@@ -70,7 +70,7 @@ impl AppState {
         let contact_service = ContactService::new(
             contact_repository.clone(),
             message_repository.clone(),
-            group_repository.clone()
+            group_repository.clone(),
         );
         let (ws_server, session_factory) = WsServer::new(
             message_repository.clone(),
@@ -80,15 +80,10 @@ impl AppState {
         let group_service = GroupService::new(
             sqlx_conn.clone(),
             group_repository.clone(),
-            empty_profile.clone()
+            empty_profile.clone(),
         );
-        let user_service = UserService::new(
-            user_repository.clone(), 
-            auth_repository.clone()
-        );
-        let attachment_service = AttachmentService::new(
-            attachment_repository.clone()
-        );
+        let user_service = UserService::new(user_repository.clone(), auth_repository.clone());
+        let attachment_service = AttachmentService::new(attachment_repository.clone());
         let app_state = AppState {
             env_jwt_secret,
             env_jwt_secret_mins,
@@ -106,7 +101,7 @@ impl AppState {
             message_service,
             group_service,
             user_service,
-            attachment_service
+            attachment_service,
         };
         (app_state, ws_server)
     }

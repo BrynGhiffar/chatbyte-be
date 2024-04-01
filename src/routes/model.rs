@@ -36,7 +36,10 @@ where
     S: Send + Sync,
 {
     type Rejection = Response;
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
         let Query(res): Query<ReceiverUidQuery> =
             Query::try_from_uri(&parts.uri).map_err(|_| {
                 FailedResponse(anyhow!("receiverUid query parameter missing")).into_response()
@@ -57,7 +60,10 @@ where
     S: Send + Sync,
 {
     type Rejection = Response;
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
         let Query(res): Query<GroupIdQuery> = Query::try_from_uri(&parts.uri).map_err(|_| {
             FailedResponse(anyhow!("groupId query parameter missing")).into_response()
         })?;
@@ -77,7 +83,10 @@ where
     S: Send + Sync,
 {
     type Rejection = Response;
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
         let Query(res): Query<TokenQuery> = Query::try_from_uri(&parts.uri).map_err(|_| {
             FailedResponse(anyhow!("token query parameter missing")).into_response()
         })?;
@@ -172,7 +181,10 @@ impl<T> Serialize for ServerResponse<T>
 where
     T: Serialize,
 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -196,7 +208,10 @@ where
 pub struct FailedResponse(pub anyhow::Error);
 
 impl Serialize for FailedResponse {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -242,7 +257,10 @@ impl FromRequestParts<AppState> for AuthorizedUser
 }
 
 impl AuthorizedUser {
-    fn authenticate(token: &str, secret: &str) -> Result<AuthorizedUser, TokenAuthenticationError> {
+    fn authenticate(
+        token: &str,
+        secret: &str,
+    ) -> Result<AuthorizedUser, TokenAuthenticationError> {
         let key: Hmac<Sha256> = match Hmac::new_from_slice(secret.as_bytes()) {
             Ok(key) => key,
             Err(e) => return Err(TokenAuthenticationError::Other(e.into())),

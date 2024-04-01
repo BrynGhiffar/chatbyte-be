@@ -14,7 +14,10 @@ impl ContactRepository {
         ContactRepository { conn }
     }
 
-    pub async fn get_contacts(&self, user_id: i32) -> Result<Vec<ContactRepositoryModel>, String> {
+    pub async fn get_contacts(
+        &self,
+        user_id: i32,
+    ) -> Result<Vec<ContactRepositoryModel>, String> {
         sqlx::query_as::<_, ContactRepositoryModel>(GET_CONTACT_STMT)
             .bind(user_id)
             .fetch_all(&self.conn)

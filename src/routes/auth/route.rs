@@ -1,9 +1,9 @@
 use anyhow::anyhow;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::State;
+use axum::routing::get;
 use axum::routing::post;
 use axum::routing::put;
-use axum::routing::get;
 use axum::Json;
 use axum::Router;
 
@@ -78,8 +78,6 @@ async fn change_password(
     }
 }
 
-async fn valid_token(
-    _: AuthorizedUser
-) -> ServerResponse<ValidTokenSuccess> {
+async fn valid_token(_: AuthorizedUser) -> ServerResponse<ValidTokenSuccess> {
     Success(ValidTokenSuccess)
 }

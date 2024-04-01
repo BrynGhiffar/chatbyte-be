@@ -48,14 +48,22 @@ impl WsServer {
         (ws_server, session_factory)
     }
 
-    async fn session_up(&mut self, session_id: i32, sess_tx: SessionTx) {
+    async fn session_up(
+        &mut self,
+        session_id: i32,
+        sess_tx: SessionTx,
+    ) {
         let prev = self.user_storage.insert(session_id, sess_tx);
         if let Some(session) = prev {
             let _ = session.send(SessionMessage::CloseConnection);
         }
     }
 
-    fn send_session_message(&self, user_id: i32, message: WsResponse) {
+    fn send_session_message(
+        &self,
+        user_id: i32,
+        message: WsResponse,
+    ) {
         let Some(sess_tx) = self.user_storage.get(&user_id) else {
             return;
         };
@@ -64,7 +72,11 @@ impl WsServer {
             .unwrap();
     }
 
-    fn send_session_error(&self, user_id: i32, message: String) {
+    fn send_session_error(
+        &self,
+        user_id: i32,
+        message: String,
+    ) {
         let Some(sess_tx) = self.user_storage.get(&user_id) else {
             return;
         };
@@ -75,7 +87,11 @@ impl WsServer {
             .unwrap();
     }
 
-    fn send_new_message_notification(&self, user_id: i32, msg: DirectMessageModel) {
+    fn send_new_message_notification(
+        &self,
+        user_id: i32,
+        msg: DirectMessageModel,
+    ) {
         let message = MessageNotification {
             id: msg.id,
             sender_uid: msg.sender_id,
@@ -96,27 +112,43 @@ impl WsServer {
         self.send_session_message(user_id, message);
     }
 
-    async fn handle_read_message(&self, sender_uid: i32, receiver_uid: i32) {
+    async fn handle_read_message(
+        &self,
+        sender_uid: i32,
+        receiver_uid: i32,
+    ) {
         let message = ReadDirectNotification {
             sender_uid,
             receiver_uid,
         };
-        let res = self.message_repository.update_message_read(receiver_uid, sender_uid).await;
+        let res = self
+            .message_repository
+            .update_message_read(receiver_uid, sender_uid)
+            .await;
         match res {
-            Ok(_) => { }
-            Err(e) => { log::info!("{}", e); return; }
+            Ok(_) => {}
+            Err(e) => {
+                log::info!("{}", e);
+                return;
+            }
         };
-        
-        
+
         self.send_session_message(sender_uid, message);
     }
 
-    async fn handle_group_read_message(&self, user_id: i32, group_id: i32) {
-        let res = self.group_repository.read_all_message(user_id, group_id).await;
+    async fn handle_group_read_message(
+        &self,
+        user_id: i32,
+        group_id: i32,
+    ) {
+        let res = self
+            .group_repository
+            .read_all_message(user_id, group_id)
+            .await;
         match res {
             Ok(succ) if succ => succ,
             Ok(_) => return log::error!("failed to update group message read"),
-            Err(e) => return log::error!("{e}")
+            Err(e) => return log::error!("{e}"),
         };
     }
 
@@ -220,7 +252,11 @@ impl WsServer {
         }
     }
 
-    async fn handle_delete_direct_message(&self, sender_id: i32, message_id: i32) {
+    async fn handle_delete_direct_message(
+        &self,
+        sender_id: i32,
+        message_id: i32,
+    ) {
         let result = self.message_repository.find_message_by_id(message_id).await;
         let message = match result {
             Ok(Some(message)) => message,
@@ -250,7 +286,11 @@ impl WsServer {
         self.send_session_message(message.receiver_id, receiver_message);
     }
 
-    async fn handle_delete_group_message(&self, sender_id: i32, message_id: i32) {
+    async fn handle_delete_group_message(
+        &self,
+        sender_id: i32,
+        message_id: i32,
+    ) {
         use WsResponse::*;
         let result = self.group_repository.find_message_by_id(message_id).await;
         let message = match result {
@@ -377,7 +417,11 @@ impl WsServer {
         }
     }
 
-    async fn session_message(&mut self, session_id: i32, msg: String) {
+    async fn session_message(
+        &mut self,
+        session_id: i32,
+        msg: String,
+    ) {
         let message = match WsRequest::from_str(&msg) {
             Ok(msg) => msg,
             Err(e) => {
@@ -402,14 +446,12 @@ impl WsServer {
                 self.handle_send_group_message(session_id, group_id, message, attachments)
                     .await
             }
-            WsRequest::ReadDirectMessage {
-                receiver_uid,
-            } => {
+            WsRequest::ReadDirectMessage { receiver_uid } => {
                 self.handle_read_message(receiver_uid, session_id).await
-            },
+            }
             WsRequest::ReadGroupMessage { group_id } => {
                 self.handle_group_read_message(session_id, group_id).await
-            },
+            }
             WsRequest::DeleteDirectMessage { message_id } => {
                 self.handle_delete_direct_message(session_id, message_id)
                     .await
@@ -435,7 +477,10 @@ impl WsServer {
         };
     }
 
-    async fn session_down(&mut self, session_id: i32) {
+    async fn session_down(
+        &mut self,
+        session_id: i32,
+    ) {
         let sess = self.user_storage.remove(&session_id);
         if let Some(sess) = sess {
             let _ = sess.send(SessionMessage::CloseConnection);

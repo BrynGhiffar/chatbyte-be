@@ -1,6 +1,6 @@
-use axum::Router;
 use axum::extract::State;
 use axum::routing::get;
+use axum::Router;
 
 use crate::app::AppState;
 use crate::routes::AuthorizedUser;
@@ -22,24 +22,22 @@ pub fn message_route(state: AppState) -> Router {
 pub async fn find_direct_message(
     AuthorizedUser { user_id }: AuthorizedUser,
     ReceiverUidQuery { receiver_uid }: ReceiverUidQuery,
-    State(state): State<AppState>
-) -> ServerResponse<Vec<DirectMessageModel>> 
-{
-    let res = state.message_service
-        .find_direct_message(
-            user_id, receiver_uid
-        )
+    State(state): State<AppState>,
+) -> ServerResponse<Vec<DirectMessageModel>> {
+    let res = state
+        .message_service
+        .find_direct_message(user_id, receiver_uid)
         .await;
     match res {
         Ok(res) => Success(res),
-        Err(e) => Failed(e)
+        Err(e) => Failed(e),
     }
 }
 
 pub async fn find_group_message(
     AuthorizedUser { user_id }: AuthorizedUser,
     GroupIdQuery { group_id }: GroupIdQuery,
-    State(state): State<AppState>
+    State(state): State<AppState>,
 ) -> ServerResponse<Vec<GroupMessageModel>> {
     let res = state
         .message_service
@@ -47,6 +45,6 @@ pub async fn find_group_message(
         .await;
     match res {
         Ok(res) => Success(res),
-        Err(e) => Failed(e)
+        Err(e) => Failed(e),
     }
 }

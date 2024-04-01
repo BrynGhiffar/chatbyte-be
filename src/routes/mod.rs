@@ -1,19 +1,19 @@
+mod attachment;
 mod auth;
-mod healthcheck;
-mod model;
 mod contact;
-mod message;
 mod group;
+mod healthcheck;
+mod message;
+mod model;
 mod user;
 mod websocket;
-mod attachment;
 
+pub use attachment::*;
 pub use auth::*;
-pub use healthcheck::*;
-pub use model::*;
 pub use contact::*;
-pub use message::*;
 pub use group::*;
+pub use healthcheck::*;
+pub use message::*;
+pub use model::*;
 pub use user::*;
 pub use websocket::*;
-pub use attachment::*;

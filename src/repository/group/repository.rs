@@ -1,5 +1,3 @@
-use chrono::Local;
-
 use sqlx::Executor;
 use sqlx::Pool;
 use sqlx::Postgres;
@@ -35,7 +33,10 @@ impl GroupRepository {
         return GroupRepository { conn };
     }
 
-    pub async fn create_group(&self, name: String) -> Result<GroupRepositoryModel, String> {
+    pub async fn create_group(
+        &self,
+        name: String,
+    ) -> Result<GroupRepositoryModel, String> {
         Self::create_group_with_executor(&self.conn, name).await
     }
 
@@ -83,7 +84,11 @@ impl GroupRepository {
             .map(|r| r.rows_affected() == 1)
     }
 
-    pub async fn add_user_to_group(&self, user_id: i32, group_id: i32) -> Result<bool, String> {
+    pub async fn add_user_to_group(
+        &self,
+        user_id: i32,
+        group_id: i32,
+    ) -> Result<bool, String> {
         Self::add_user_to_group_with_executor(&self.conn, user_id, group_id).await
     }
 
@@ -101,7 +106,10 @@ impl GroupRepository {
             .map(|r| r.rows_affected() == 1)
     }
 
-    pub async fn delete_group(&self, group_id: i32) -> Result<bool, String> {
+    pub async fn delete_group(
+        &self,
+        group_id: i32,
+    ) -> Result<bool, String> {
         sqlx::query(DELETE_GROUP_STMT)
             .bind(group_id)
             .execute(&self.conn)
@@ -184,7 +192,10 @@ impl GroupRepository {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn find_group_members(&self, group_id: i32) -> Result<Vec<i32>, String> {
+    pub async fn find_group_members(
+        &self,
+        group_id: i32,
+    ) -> Result<Vec<i32>, String> {
         sqlx::query_as::<_, (i32,)>(FIND_GROUP_MEMBER_STMT)
             .bind(group_id)
             .fetch_all(&self.conn)
@@ -215,7 +226,11 @@ impl GroupRepository {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn read_all_message(&self, user_id: i32, group_id: i32) -> Result<bool, String> {
+    pub async fn read_all_message(
+        &self,
+        user_id: i32,
+        group_id: i32,
+    ) -> Result<bool, String> {
         sqlx::query(READ_ALL_MESSAGE_STMT)
             .bind(user_id)
             .bind(group_id)
@@ -225,7 +240,10 @@ impl GroupRepository {
             .map(|_| true)
     }
 
-    pub async fn set_message_to_delete(&self, message_id: i32) -> Result<bool, String> {
+    pub async fn set_message_to_delete(
+        &self,
+        message_id: i32,
+    ) -> Result<bool, String> {
         sqlx::query(SET_MESSAGE_DELETE_STMT)
             .bind(message_id)
             .execute(&self.conn)

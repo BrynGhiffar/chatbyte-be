@@ -35,7 +35,11 @@ impl MessageRepository {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn update_message_read(&self, to_user: i32, from_user: i32) -> Result<(), String> {
+    pub async fn update_message_read(
+        &self,
+        to_user: i32,
+        from_user: i32,
+    ) -> Result<(), String> {
         sqlx::query(UPDATE_MESSAGE_READ_STMT)
             .bind(to_user)
             .bind(from_user)
@@ -94,7 +98,10 @@ impl MessageRepository {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn delete_message(&self, message_id: i32) -> Result<bool, String> {
+    pub async fn delete_message(
+        &self,
+        message_id: i32,
+    ) -> Result<bool, String> {
         sqlx::query(DELETE_MESSAGE_STMT)
             .bind(message_id)
             .execute(&self.conn)

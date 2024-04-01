@@ -1,5 +1,4 @@
-mod route;
 mod model;
+mod route;
 
 pub use route::*;
-pub use model::*;

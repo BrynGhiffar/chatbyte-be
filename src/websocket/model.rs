@@ -50,7 +50,7 @@ pub enum WsRequest {
 
     #[serde(rename = "READ_GROUP_MESSAGE")]
     #[serde(rename_all = "camelCase")]
-    ReadGroupMessage { group_id: i32, },
+    ReadGroupMessage { group_id: i32 },
 
     #[serde(rename = "DELETE_DIRECT_MESSAGE")]
     #[serde(rename_all = "camelCase")]

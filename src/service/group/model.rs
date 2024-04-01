@@ -1,12 +1,12 @@
 use anyhow::anyhow;
 use axum::async_trait;
+use axum::body::Bytes;
+use axum::body::HttpBody;
 use axum::extract::FromRequest;
 use axum::extract::Multipart;
 use axum::http::Request;
 use axum::response::IntoResponse;
 use axum::response::Response;
-use axum::body::HttpBody;
-use axum::body::Bytes;
 use axum::BoxError;
 use serde::Serialize;
 
@@ -22,28 +22,27 @@ pub struct GroupModel {
 pub struct CreateGroupForm {
     pub group_name: String,
     pub members: Vec<i32>,
-    pub profile_picture: Option<Vec<u8>>
+    pub profile_picture: Option<Vec<u8>>,
 }
 
 #[async_trait]
 impl<S, B> FromRequest<S, B> for CreateGroupForm
-    where 
-        S: Send + Sync,
-        B: HttpBody + Send + 'static,
-        B::Data: Into<Bytes>,
-        B::Error: Into<BoxError>,
+where
+    S: Send + Sync,
+    B: HttpBody + Send + 'static,
+    B::Data: Into<Bytes>,
+    B::Error: Into<BoxError>,
 {
     type Rejection = Response;
 
     async fn from_request(
-        req: Request<B> ,state: &S
-    ) -> Result<Self,Self::Rejection>
-    {
-
+        req: Request<B>,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
         let res = Multipart::from_request(req, state).await;
         let mut multipart = match res {
             Ok(mp) => mp,
-            Err(e) => return Err(FailedResponse(e.into()).into_response())
+            Err(e) => return Err(FailedResponse(e.into()).into_response()),
         };
 
         let mut group_name: Option<String> = None;
@@ -55,19 +54,19 @@ impl<S, B> FromRequest<S, B> for CreateGroupForm
             if name.eq("groupName") {
                 let text = match field.text().await {
                     Ok(t) => t,
-                    Err(e) => return Err(FailedResponse(e.into()).into_response())
+                    Err(e) => return Err(FailedResponse(e.into()).into_response()),
                 };
                 group_name = Some(text);
             } else if name.eq("members") {
                 let text = match field.text().await {
                     Ok(t) => t,
-                    Err(e) => return Err(FailedResponse(e.into()).into_response())
+                    Err(e) => return Err(FailedResponse(e.into()).into_response()),
                 };
                 group_members = Some(text);
             } else if name.eq("profilePicture") {
                 let data = match field.bytes().await {
                     Ok(dat) => dat,
-                    Err(e) => return Err(FailedResponse(e.into()).into_response())
+                    Err(e) => return Err(FailedResponse(e.into()).into_response()),
                 };
                 let data = data.iter().cloned().collect::<Vec<_>>();
                 profile_picture = Some(data);
@@ -75,28 +74,38 @@ impl<S, B> FromRequest<S, B> for CreateGroupForm
         }
         let group_name = match group_name {
             Some(s) => s,
-            None => return Err(FailedResponse(anyhow!("groupName field is missing")).into_response())
+            None => {
+                return Err(FailedResponse(anyhow!("groupName field is missing")).into_response())
+            }
         };
         let group_members = match group_members {
             Some(s) => s,
-            None => return Err(FailedResponse(anyhow!("members field is missing")).into_response())
+            None => return Err(FailedResponse(anyhow!("members field is missing")).into_response()),
         };
-        let group_members = group_members.split(",")
+        let group_members = group_members
+            .split(",")
             .fold(Some(Vec::<i32>::new()), |acc, it| {
-                let Some(mut v) = acc else { return None; };
-                let Ok(num) = it.parse::<i32>() else { return None; };
+                let Some(mut v) = acc else {
+                    return None;
+                };
+                let Ok(num) = it.parse::<i32>() else {
+                    return None;
+                };
                 v.push(num);
                 Some(v)
-            })
-            ;
+            });
         let members = match group_members {
             Some(mm) => mm,
-            None => return Err(FailedResponse(anyhow!("members field format is invalid")).into_response())
+            None => {
+                return Err(
+                    FailedResponse(anyhow!("members field format is invalid")).into_response()
+                )
+            }
         };
-        Ok(CreateGroupForm { 
-            group_name, 
-            members, 
-            profile_picture 
+        Ok(CreateGroupForm {
+            group_name,
+            members,
+            profile_picture,
         })
     }
 }

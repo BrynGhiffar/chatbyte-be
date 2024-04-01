@@ -7,19 +7,18 @@ use crate::websocket::message::SessionMessage;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
 use axum::Error;
+use futures_util::stream::SplitSink;
 use futures_util::FutureExt;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
-use futures_util::stream::SplitSink;
 use merge_streams::MergeStreams;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 enum WebSocketMessage {
     Text(String),
-    Close
+    Close,
 }
-
 
 #[derive(Clone)]
 pub struct SessionFactory {
@@ -27,7 +26,11 @@ pub struct SessionFactory {
 }
 
 impl SessionFactory {
-    pub fn create_session(&self, token: String, user_id: i32) -> Session {
+    pub fn create_session(
+        &self,
+        token: String,
+        user_id: i32,
+    ) -> Session {
         // create a session
         // add session into the database
 
@@ -57,19 +60,29 @@ pub struct Session {
 }
 
 impl Session {
-    pub async fn handle_session_message(ws: &mut SplitSink<WebSocket, Message>, msg: String) {
+    pub async fn handle_session_message(
+        ws: &mut SplitSink<WebSocket, Message>,
+        msg: String,
+    ) {
         ws.send(Message::Text(msg)).await.unwrap();
     }
 
-    pub async fn handle_websocket_message(&self, msg: String) {
-        self.app_tx.send(AppMessage::Message {
-            session_id: self.session_id,
-            message: msg.to_string(),
-        })
-        .unwrap();
+    pub async fn handle_websocket_message(
+        &self,
+        msg: String,
+    ) {
+        self.app_tx
+            .send(AppMessage::Message {
+                session_id: self.session_id,
+                message: msg.to_string(),
+            })
+            .unwrap();
     }
 
-    pub async fn run(self, ws: WebSocket) {
+    pub async fn run(
+        self,
+        ws: WebSocket,
+    ) {
         let (mut ws_tx, mut ws_rx) = ws.split();
         let (session_tx, mut session_rx) = SessionMessage::channel();
         let (token_checker, mut checker_rx) = self.spawn_token_checker(self.session_id);
@@ -80,7 +93,6 @@ impl Session {
             })
             .expect("This should be okay");
         loop {
-            
             let ws_source = ws_rx
                 .next()
                 .into_stream()
@@ -112,41 +124,53 @@ impl Session {
             match msg {
                 SessionSource::SessionMessage(SessionMessage::Message(text)) => {
                     Self::handle_session_message(&mut ws_tx, text).await;
-                },
-                SessionSource::WebSocketText(msg) => { 
+                }
+                SessionSource::WebSocketText(msg) => {
                     self.handle_websocket_message(msg).await;
-                },
-                
+                }
+
                 // Errors
                 SessionSource::WebSocketError(e) => {
                     log::info!("{e}");
-                },
-                
+                }
+
                 // close connections
 
                 // from token checker
                 SessionSource::TokenChecker(_) => {
-                    self.app_tx.send(AppMessage::Disconnect { session_id: self.session_id, }).unwrap();
+                    self.app_tx
+                        .send(AppMessage::Disconnect {
+                            session_id: self.session_id,
+                        })
+                        .unwrap();
                     let _ = ws_tx.send(Message::Close(None)).await;
                     break;
-                },
+                }
                 // from server
                 SessionSource::SessionMessage(SessionMessage::CloseConnection) => {
                     token_checker.abort();
                     let _ = ws_tx.send(Message::Close(None)).await;
                     break;
-                },
+                }
                 // from client
                 SessionSource::WebSocketClose => {
                     token_checker.abort();
-                    let _ = self.app_tx.send(AppMessage::Disconnect { session_id: self.session_id, }).unwrap();
+                    let _ = self
+                        .app_tx
+                        .send(AppMessage::Disconnect {
+                            session_id: self.session_id,
+                        })
+                        .unwrap();
                     break;
                 }
             };
         }
     }
 
-    pub fn spawn_token_checker(&self, _session_id: i32) -> (JoinHandle<()>, mpsc::UnboundedReceiver<bool>) {
+    pub fn spawn_token_checker(
+        &self,
+        _session_id: i32,
+    ) -> (JoinHandle<()>, mpsc::UnboundedReceiver<bool>) {
         let (ch_tx, ch_rx) = mpsc::unbounded_channel::<bool>();
         let token = self.token.clone();
         let handle = tokio::spawn(async move {

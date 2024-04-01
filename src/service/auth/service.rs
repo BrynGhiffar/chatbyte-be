@@ -28,7 +28,11 @@ pub struct AuthService {
 }
 
 impl AuthService {
-    pub fn new(auth_repository: AuthRepository, jwt_secret: String, jwt_duration: u64) -> Self {
+    pub fn new(
+        auth_repository: AuthRepository,
+        jwt_secret: String,
+        jwt_duration: u64,
+    ) -> Self {
         Self {
             auth_repository,
             jwt_secret,
@@ -41,19 +45,27 @@ impl AuthService {
         return regex.is_match(email);
     }
 
-    fn passwords_match(plain_password: &str, hashed_password: &str) -> Result<bool, anyhow::Error> {
+    fn passwords_match(
+        plain_password: &str,
+        hashed_password: &str,
+    ) -> Result<bool, anyhow::Error> {
         let valid = bcrypt::verify(plain_password, hashed_password)?;
         return Ok(valid);
     }
 
-    pub async fn login(&self, login_form: LoginForm) -> Result<AuthenticationToken, anyhow::Error> {
+    pub async fn login(
+        &self,
+        login_form: LoginForm,
+    ) -> Result<AuthenticationToken, anyhow::Error> {
         let LoginForm { email, password } = login_form;
         let res = self.auth_repository.find_user_by_email(email.clone()).await;
         let user = match res {
             Ok(Some(u)) => u,
-            Ok(None) => bail!(AuthError::EmailNotFound {
-                email: email.clone()
-            }),
+            Ok(None) => {
+                bail!(AuthError::EmailNotFound {
+                    email: email.clone()
+                })
+            }
             Err(e) => bail!(e),
         };
         let password_match = bcrypt::verify(&password, &user.password)?;
@@ -89,7 +101,9 @@ impl AuthService {
         let res = self.auth_repository.find_user_by_email(email.clone()).await;
 
         match res {
-            Ok(Some(_)) => bail!(EmailAlreadyExists),
+            Ok(Some(_)) => {
+                bail!(EmailAlreadyExists)
+            }
             Ok(None) => {}
             Err(e) => bail!(e),
         };
@@ -101,7 +115,7 @@ impl AuthService {
             Err(e) => {
                 log::error!("{e}");
                 bail!(e)
-            } ,
+            }
         }
     }
 
@@ -118,7 +132,9 @@ impl AuthService {
         let res = self.auth_repository.find_user_by_id(user_id).await;
         let user = match res {
             Ok(Some(u)) => u,
-            Ok(None) => bail!(BadRequestUserNotFound { user_id }),
+            Ok(None) => {
+                bail!(BadRequestUserNotFound { user_id })
+            }
             Err(e) => bail!(e),
         };
         let password_match = Self::passwords_match(&old_password, &user.password)?;

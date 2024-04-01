@@ -35,31 +35,28 @@ pub struct GroupMessageModel {
 
 impl GroupMessageModel {
     pub fn combine(
-        GroupMessageRepositoryModel { 
-            id, 
-            sender_id, 
-            username, 
-            group_id, 
-            content, 
-            sent_at, 
-            edited, 
-            deleted 
+        GroupMessageRepositoryModel {
+            id,
+            sender_id,
+            username,
+            group_id,
+            content,
+            sent_at,
+            edited,
+            deleted,
         }: GroupMessageRepositoryModel,
-        attachments: Vec<AttachmentRepositoryModel>
+        attachments: Vec<AttachmentRepositoryModel>,
     ) -> Self {
-        Self { 
-            id, 
-            sender_id, 
-            username, 
-            group_id, 
-            content, 
-            sent_at, 
-            edited, 
-            deleted, 
-            attachments: attachments
-            .iter()
-            .map(|at| at.clone().into())
-            .collect()
+        Self {
+            id,
+            sender_id,
+            username,
+            group_id,
+            content,
+            sent_at,
+            edited,
+            deleted,
+            attachments: attachments.iter().map(|at| at.clone().into()).collect(),
         }
     }
 }
@@ -106,31 +103,28 @@ pub struct DirectMessageModel {
 
 impl DirectMessageModel {
     pub fn combine(
-        MessageRepositoryModel { 
-            id, 
-            sent_at, 
-            sender_id, 
-            receiver_id, 
-            content, 
-            read, 
-            edited, 
-            deleted 
+        MessageRepositoryModel {
+            id,
+            sent_at,
+            sender_id,
+            receiver_id,
+            content,
+            read,
+            edited,
+            deleted,
         }: MessageRepositoryModel,
-        attachments: Vec<AttachmentRepositoryModel>
+        attachments: Vec<AttachmentRepositoryModel>,
     ) -> Self {
-        Self { 
-            id, 
-            sent_at, 
-            sender_id, 
-            receiver_id, 
-            content, 
-            read, 
-            edited, 
-            deleted, 
-            attachments: attachments
-                .iter()
-                .map(|at| at.clone().into())
-                .collect()
+        Self {
+            id,
+            sent_at,
+            sender_id,
+            receiver_id,
+            content,
+            read,
+            edited,
+            deleted,
+            attachments: attachments.iter().map(|at| at.clone().into()).collect(),
         }
     }
 }

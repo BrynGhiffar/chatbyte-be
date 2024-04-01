@@ -29,7 +29,10 @@ pub enum AuthError {
 pub struct RegisterSuccess;
 
 impl Serialize for RegisterSuccess {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -59,7 +62,10 @@ pub struct ChangePasswordForm {
 pub struct ChangePasswordSuccess;
 
 impl Serialize for ChangePasswordSuccess {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {

@@ -115,10 +115,11 @@ impl AttachmentRepository {
     }
 
     pub async fn find_attachment_by_direct_message_id(
-        &self, 
-        message_id: i32
+        &self,
+        message_id: i32,
     ) -> Result<Vec<AttachmentRepositoryModel>, String> {
-        sqlx::query_as::<_, AttachmentRepositoryModel>("
+        sqlx::query_as::<_, AttachmentRepositoryModel>(
+            "
         SELECT 
             A.ID AS ID,
             A.NAME AS NAME,
@@ -127,18 +128,20 @@ impl AttachmentRepository {
         FROM PUBLIC.ATTACHMENT_MESSAGE AM
             JOIN PUBLIC.ATTACHMENT A ON A.ID = AM.ATTACHMENT_ID
         WHERE AM.DIRECT_MESSAGE_ID = $1;
-        ")
-            .bind(message_id)
-            .fetch_all(&self.conn)
-            .await
-            .map_err(|e| e.to_string())
+        ",
+        )
+        .bind(message_id)
+        .fetch_all(&self.conn)
+        .await
+        .map_err(|e| e.to_string())
     }
 
     pub async fn find_attachment_by_group_message_id(
         &self,
-        group_id: i32
+        group_id: i32,
     ) -> Result<Vec<AttachmentRepositoryModel>, String> {
-        sqlx::query_as::<_, AttachmentRepositoryModel>("
+        sqlx::query_as::<_, AttachmentRepositoryModel>(
+            "
         SELECT 
             A.ID AS ID,
             A.NAME AS NAME,
@@ -147,24 +150,27 @@ impl AttachmentRepository {
         FROM PUBLIC.ATTACHMENT_MESSAGE AM
             JOIN PUBLIC.ATTACHMENT A ON A.ID = AM.ATTACHMENT_ID
         WHERE AM.GROUP_MESSAGE_ID = $1;
-        ")
-            .bind(group_id)
-            .fetch_all(&self.conn)
-            .await
-            .map_err(|e| e.to_string())
+        ",
+        )
+        .bind(group_id)
+        .fetch_all(&self.conn)
+        .await
+        .map_err(|e| e.to_string())
     }
 
     pub async fn find_attachment_by_id(
         &self,
         attachment_id: i32,
     ) -> Result<Option<AttachmentRepositoryModel>, String> {
-        sqlx::query_as::<_, AttachmentRepositoryModel>("
+        sqlx::query_as::<_, AttachmentRepositoryModel>(
+            "
             SELECT * FROM PUBLIC.ATTACHMENT
                 WHERE ID = $1
-        ")
-            .bind(attachment_id)
-            .fetch_optional(&self.conn)
-            .await
-            .map_err(|e| e.to_string())
+        ",
+        )
+        .bind(attachment_id)
+        .fetch_optional(&self.conn)
+        .await
+        .map_err(|e| e.to_string())
     }
 }

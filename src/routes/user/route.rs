@@ -1,12 +1,12 @@
-use axum::Json;
-use axum::Router;
+use axum::body::Bytes;
 use axum::extract::rejection::JsonRejection;
-use axum::routing::get;
-use axum::routing::put;
-use axum::routing::post;
 use axum::extract::Path;
 use axum::extract::State;
-use axum::body::Bytes;
+use axum::routing::get;
+use axum::routing::post;
+use axum::routing::put;
+use axum::Json;
+use axum::Router;
 
 use crate::app::AppState;
 use crate::routes::AuthorizedUser;
@@ -34,41 +34,36 @@ pub async fn update_username(
 ) -> ServerResponse<SuccessfullyUpdateUser> {
     let Json(ChangeUsernameForm { username }) = match body {
         Ok(form) => form,
-        Err(e) => return Failed(e.into())
+        Err(e) => return Failed(e.into()),
     };
-    let res = state.user_service
-        .update_username(user_id, username)
-        .await;
+    let res = state.user_service.update_username(user_id, username).await;
     match res {
         Ok(r) => Success(r),
-        Err(e) => Failed(e)
+        Err(e) => Failed(e),
     }
 }
 
 pub async fn find_user_details(
     AuthorizedUser { user_id }: AuthorizedUser,
-    State(state): State<AppState>
+    State(state): State<AppState>,
 ) -> ServerResponse<UserDetail> {
-    let res = state.user_service
-        .find_user_details(user_id)
-        .await;
+    let res = state.user_service.find_user_details(user_id).await;
 
     match res {
         Ok(r) => Success(r),
-        Err(e) => Failed(e)
+        Err(e) => Failed(e),
     }
 }
 
 pub async fn find_user_profile(
     Path(user_id): Path<i32>,
-    State(state): State<AppState>
+    State(state): State<AppState>,
 ) -> ImageResponse {
     let image = state
         .user_service
         .find_user_avatar(user_id)
         .await
-        .unwrap_or(state.empty_profile)
-        ;
+        .unwrap_or(state.empty_profile);
     ImageResponse(image)
 }
 
@@ -78,11 +73,12 @@ pub async fn update_avatar(
     body: Bytes,
 ) -> ServerResponse<SuccessfullyUpdateUser> {
     let profile_picture = body.into_iter().collect::<Vec<_>>();
-    let res = state.user_service
+    let res = state
+        .user_service
         .update_user_avatar(user_id, profile_picture)
         .await;
     match res {
         Ok(r) => Success(r),
-        Err(e) => Failed(e)
+        Err(e) => Failed(e),
     }
 }

@@ -40,7 +40,7 @@ impl FromRow<'_, PgRow> for GroupConversationRepositoryModel {
                 content,
                 username: row.try_get("username")?,
                 deleted,
-                sent_at: sent_at,
+                sent_at,
             })
         } else {
             None

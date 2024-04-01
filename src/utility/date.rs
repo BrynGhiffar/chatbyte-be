@@ -1,5 +1,5 @@
-use serde::Serializer;
 use chrono::NaiveDateTime;
+use serde::Serializer;
 
 pub fn sent_at_date_format<S>(
     date: &NaiveDateTime,
