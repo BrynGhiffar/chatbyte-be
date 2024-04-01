@@ -2,48 +2,45 @@ use std::collections::BTreeMap;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use actix_http::header::HeaderValue;
 use anyhow::anyhow;
 use axum::async_trait;
 use axum::extract::FromRequestParts;
 use axum::extract::Query;
 use axum::http::request::Parts;
+use axum::http::HeaderValue;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use axum::response::Response;
+use axum::Json;
 use hmac::digest::KeyInit;
 use hmac::Hmac;
 use jwt::VerifyWithKey;
 use serde::ser::SerializeStruct;
-use serde::Serialize;
 use serde::Deserialize;
+use serde::Serialize;
 use sha2::Sha256;
 use thiserror::Error;
 
 use crate::app::AppState;
 use crate::repository::AttachmentFileType;
 
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReceiverUidQuery {
-    pub receiver_uid: i32
+    pub receiver_uid: i32,
 }
 
 #[async_trait]
-impl<S> FromRequestParts<S> for ReceiverUidQuery 
-    where S: Send + Sync
+impl<S> FromRequestParts<S> for ReceiverUidQuery
+where
+    S: Send + Sync,
 {
     type Rejection = Response;
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S
-    ) ->  Result<Self, Self::Rejection> 
-    {
-
-        let Query(res): Query<ReceiverUidQuery> = Query::try_from_uri(&parts.uri)
-            .map_err(|_| FailedResponse(anyhow!("receiverUid query parameter missing")).into_response())?;
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let Query(res): Query<ReceiverUidQuery> =
+            Query::try_from_uri(&parts.uri).map_err(|_| {
+                FailedResponse(anyhow!("receiverUid query parameter missing")).into_response()
+            })?;
         Ok(res)
     }
 }
@@ -51,22 +48,19 @@ impl<S> FromRequestParts<S> for ReceiverUidQuery
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupIdQuery {
-    pub group_id: i32
+    pub group_id: i32,
 }
 
 #[async_trait]
-impl<S> FromRequestParts<S> for GroupIdQuery 
-    where S: Send + Sync
+impl<S> FromRequestParts<S> for GroupIdQuery
+where
+    S: Send + Sync,
 {
     type Rejection = Response;
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S
-    ) ->  Result<Self, Self::Rejection> 
-    {
-
-        let Query(res): Query<GroupIdQuery> = Query::try_from_uri(&parts.uri)
-            .map_err(|_| FailedResponse(anyhow!("groupId query parameter missing")).into_response())?;
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let Query(res): Query<GroupIdQuery> = Query::try_from_uri(&parts.uri).map_err(|_| {
+            FailedResponse(anyhow!("groupId query parameter missing")).into_response()
+        })?;
         Ok(res)
     }
 }
@@ -74,22 +68,19 @@ impl<S> FromRequestParts<S> for GroupIdQuery
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenQuery {
-    pub token: String
+    pub token: String,
 }
 
 #[async_trait]
-impl<S> FromRequestParts<S> for TokenQuery 
-    where S: Send + Sync
+impl<S> FromRequestParts<S> for TokenQuery
+where
+    S: Send + Sync,
 {
     type Rejection = Response;
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S
-    ) ->  Result<Self, Self::Rejection> 
-    {
-
-        let Query(res): Query<TokenQuery> = Query::try_from_uri(&parts.uri)
-            .map_err(|_| FailedResponse(anyhow!("token query parameter missing")).into_response())?;
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let Query(res): Query<TokenQuery> = Query::try_from_uri(&parts.uri).map_err(|_| {
+            FailedResponse(anyhow!("token query parameter missing")).into_response()
+        })?;
         Ok(res)
     }
 }
@@ -103,13 +94,12 @@ impl FromRequestParts<AppState> for AuthorizedUserFromTokenQuery {
     type Rejection = Response;
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &AppState
-    ) -> Result<Self, Self::Rejection>
-    {
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         let TokenQuery { token } = TokenQuery::from_request_parts(parts, state).await?;
         let secret = &state.env_jwt_secret;
-        let AuthorizedUser { user_id } = AuthorizedUser::authenticate(&token, secret)
-            .map_err(|e| e.into_response())?;
+        let AuthorizedUser { user_id } =
+            AuthorizedUser::authenticate(&token, secret).map_err(|e| e.into_response())?;
         Ok(AuthorizedUserFromTokenQuery { user_id })
     }
 }
@@ -119,17 +109,15 @@ pub struct AttachmentResponse(pub Vec<u8>, pub AttachmentFileType);
 impl IntoResponse for AttachmentResponse {
     fn into_response(self) -> axum::response::Response {
         let status = StatusCode::OK;
-        let mut response = (status, self.0)
-            .into_response();
+        let mut response = (status, self.0).into_response();
         let headers = response.headers_mut();
         headers.remove("Content-Type");
         match self.1 {
             AttachmentFileType::Png => {
                 headers.append("Content-Type", HeaderValue::from_static("image/png"));
-            },
+            }
             AttachmentFileType::Jpeg => {
                 headers.append("Content-Type", HeaderValue::from_static("image/jpeg"));
-
             }
         };
         return response;
@@ -141,8 +129,7 @@ pub struct ImageResponse(pub Vec<u8>);
 impl IntoResponse for ImageResponse {
     fn into_response(self) -> axum::response::Response {
         let status = StatusCode::OK;
-        let mut response = (status, self.0)
-            .into_response();
+        let mut response = (status, self.0).into_response();
         let headers = response.headers_mut();
         headers.remove("Content-Type");
         headers.append("Content-Type", HeaderValue::from_static("image/png"));
@@ -255,10 +242,7 @@ impl FromRequestParts<AppState> for AuthorizedUser
 }
 
 impl AuthorizedUser {
-    fn authenticate(
-        token: &str,
-        secret: &str
-    ) -> Result<AuthorizedUser, TokenAuthenticationError> {
+    fn authenticate(token: &str, secret: &str) -> Result<AuthorizedUser, TokenAuthenticationError> {
         let key: Hmac<Sha256> = match Hmac::new_from_slice(secret.as_bytes()) {
             Ok(key) => key,
             Err(e) => return Err(TokenAuthenticationError::Other(e.into())),
