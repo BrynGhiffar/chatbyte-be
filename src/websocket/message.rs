@@ -1,5 +1,7 @@
 use tokio::sync::mpsc;
 
+use super::SessionID;
+
 pub type AppTx = mpsc::UnboundedSender<AppMessage>;
 pub type AppRx = mpsc::UnboundedReceiver<AppMessage>;
 pub type SessionTx = mpsc::UnboundedSender<SessionMessage>;
@@ -7,15 +9,16 @@ pub type SessionRx = mpsc::UnboundedReceiver<SessionMessage>;
 
 pub enum AppMessage {
     Connect {
-        session_id: i32,
+        session_id: SessionID,
+        user_id: i32,
         sess_tx: mpsc::UnboundedSender<SessionMessage>,
     },
     Message {
-        session_id: i32,
+        session_id: SessionID,
         message: String,
     },
     Disconnect {
-        session_id: i32,
+        session_id: SessionID,
     },
 }
 

@@ -15,6 +15,8 @@ use merge_streams::MergeStreams;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use super::SessionID;
+
 enum WebSocketMessage {
     Text(String),
     Close,
@@ -31,12 +33,9 @@ impl SessionFactory {
         token: String,
         user_id: i32,
     ) -> Session {
-        // create a session
-        // add session into the database
-
-        let session_id = user_id;
         Session {
-            session_id,
+            user_id,
+            session_id: SessionID::create(),
             token,
             app_tx: self.app_tx.clone(),
         }
@@ -54,7 +53,8 @@ enum SessionSource {
 }
 
 pub struct Session {
-    session_id: i32,
+    user_id: i32,
+    session_id: SessionID,
     token: String,
     app_tx: AppTx,
 }
@@ -73,7 +73,7 @@ impl Session {
     ) {
         self.app_tx
             .send(AppMessage::Message {
-                session_id: self.session_id,
+                session_id: self.session_id.clone(),
                 message: msg.to_string(),
             })
             .unwrap();
@@ -85,10 +85,11 @@ impl Session {
     ) {
         let (mut ws_tx, mut ws_rx) = ws.split();
         let (session_tx, mut session_rx) = SessionMessage::channel();
-        let (token_checker, mut checker_rx) = self.spawn_token_checker(self.session_id);
+        let (token_checker, mut checker_rx) = self.spawn_token_checker();
         self.app_tx
             .send(AppMessage::Connect {
-                session_id: self.session_id,
+                user_id: self.user_id,
+                session_id: self.session_id.clone(),
                 sess_tx: session_tx,
             })
             .expect("This should be okay");
@@ -167,10 +168,7 @@ impl Session {
         }
     }
 
-    pub fn spawn_token_checker(
-        &self,
-        _session_id: i32,
-    ) -> (JoinHandle<()>, mpsc::UnboundedReceiver<bool>) {
+    pub fn spawn_token_checker(&self) -> (JoinHandle<()>, mpsc::UnboundedReceiver<bool>) {
         let (ch_tx, ch_rx) = mpsc::unbounded_channel::<bool>();
         let token = self.token.clone();
         let handle = tokio::spawn(async move {

@@ -3,12 +3,29 @@ use std::str::FromStr;
 use base64::engine::general_purpose;
 use base64::Engine;
 use chrono::NaiveDateTime;
+use rand::Rng;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Error;
 
 use crate::repository::AttachmentFileType;
 use crate::service::GroupMessageModel;
+
+use super::message::SessionTx;
+
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub(crate) struct SessionID(i32);
+
+impl SessionID {
+    pub(crate) fn create() -> Self {
+        SessionID(rand::thread_rng().gen_range(10_000..=99_999))
+    }
+}
+
+pub(crate) struct SessionHandle {
+    pub(crate) user_id: i32,
+    pub(crate) sender: SessionTx,
+}
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
