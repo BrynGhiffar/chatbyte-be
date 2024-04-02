@@ -76,6 +76,7 @@ impl AppState {
             message_repository.clone(),
             group_repository.clone(),
             message_service.clone(),
+            contact_service.clone(),
         );
         let group_service = GroupService::new(
             sqlx_conn.clone(),

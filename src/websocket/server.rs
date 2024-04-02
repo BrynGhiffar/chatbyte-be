@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::str::FromStr;
 
 use super::session::SessionFactory;
@@ -6,11 +7,13 @@ use super::MessageAttachment;
 use super::MessageNotificationAttachment;
 use super::SessionHandle;
 use super::SessionID;
+use super::UserOnlineStatus;
 use super::WsRequest;
 use super::WsResponse::*;
 use super::WsResponse::{self};
 use crate::repository::group::GroupRepository;
 use crate::repository::message::MessageRepository;
+use crate::service::ContactService;
 use crate::service::CreateAttachmentModel;
 use crate::service::CreateDirectMessageModel;
 use crate::service::CreateGroupMessageModel;
@@ -27,6 +30,7 @@ pub struct WsServer {
     message_repository: MessageRepository,
     group_repository: GroupRepository,
     message_service: MessageService,
+    contact_service: ContactService,
 }
 
 impl WsServer {
@@ -34,6 +38,7 @@ impl WsServer {
         message_repository: MessageRepository,
         group_repository: GroupRepository,
         message_service: MessageService,
+        contact_service: ContactService,
     ) -> (Self, SessionFactory) {
         let (app_tx, app_rx) = AppMessage::channel();
 
@@ -45,9 +50,70 @@ impl WsServer {
             message_repository,
             group_repository,
             message_service,
+            contact_service,
         };
         let session_factory = SessionFactory { app_tx };
         (ws_server, session_factory)
+    }
+
+    async fn get_online_contact_ids(
+        &self,
+        user_id: i32,
+    ) -> Result<HashSet<i32>, anyhow::Error> {
+        let contact_ids = self
+            .contact_service
+            .find_direct_contacts_for_user(user_id)
+            .await?
+            .iter()
+            .map(|c| c.id)
+            .collect::<HashSet<_>>();
+        let online_users = self
+            .user_storage
+            .iter()
+            .map(|(_, handle)| handle.user_id)
+            .collect::<HashSet<_>>();
+        let online_contacts = online_users
+            .intersection(&contact_ids)
+            .cloned()
+            .collect::<HashSet<_>>();
+        Ok(online_contacts)
+    }
+
+    async fn send_online_notification(
+        &self,
+        user_id: i32,
+    ) -> Option<()> {
+        let online_contacts = self
+            .get_online_contact_ids(user_id)
+            .await
+            .ok()?
+            .iter()
+            .map(|user_id| UserOnlineStatus {
+                user_id: *user_id,
+                online: true,
+            })
+            .collect::<Vec<_>>();
+        self.send_session_message(
+            user_id,
+            WsResponse::UsersOnline {
+                users: online_contacts.clone(),
+            },
+        );
+
+        // let the user's contacts know that he is online
+        let user_online = vec![UserOnlineStatus {
+            user_id,
+            online: true,
+        }];
+        online_contacts.iter().for_each(|status| {
+            self.send_session_message(
+                status.user_id,
+                WsResponse::UsersOnline {
+                    users: user_online.clone(),
+                },
+            )
+        });
+        Some(())
     }
 
     async fn session_up(
@@ -55,17 +121,20 @@ impl WsServer {
         session_id: SessionID,
         user_id: i32,
         sess_tx: SessionTx,
-    ) {
+    ) -> Option<()> {
         let prev = self.user_storage.insert(
             session_id,
             SessionHandle {
                 user_id,
-                sender: sess_tx,
+                sender: sess_tx.clone(),
             },
         );
+        self.send_online_notification(user_id).await;
+
         if let Some(session) = prev {
             let _ = session.sender.send(SessionMessage::CloseConnection);
         }
+        Some(())
     }
 
     fn send_session_message(
@@ -498,14 +567,46 @@ impl WsServer {
         };
     }
 
+    async fn send_offline_notification(
+        &self,
+        user_id: i32,
+    ) -> Option<()> {
+        let still_online = self
+            .user_storage
+            .iter()
+            .any(|(_, handle)| handle.user_id == user_id);
+
+        if still_online {
+            return Some(());
+        }
+
+        // if not still online, then send message to all online contacts that you are offline
+        let online_contacts = self.get_online_contact_ids(user_id).await.ok()?;
+        let user_online = vec![UserOnlineStatus {
+            user_id,
+            online: false,
+        }];
+        online_contacts.into_iter().for_each(|user_id| {
+            self.send_session_message(
+                user_id,
+                WsResponse::UsersOnline {
+                    users: user_online.clone(),
+                },
+            )
+        });
+        Some(())
+    }
+
     async fn session_down(
         &mut self,
         session_id: SessionID,
-    ) {
-        let sess = self.user_storage.remove(&session_id);
-        if let Some(sess) = sess {
-            let _ = sess.sender.send(SessionMessage::CloseConnection);
-        }
+    ) -> Option<()> {
+        let sess = self.user_storage.remove(&session_id)?;
+
+        // need to check all sessions of a particular user is down, before notifying to online contacts that the user is down
+        let _ = sess.sender.send(SessionMessage::CloseConnection);
+        self.send_offline_notification(sess.user_id).await;
+        Some(())
     }
 
     pub async fn run(mut self) -> std::io::Result<()> {
@@ -515,12 +616,16 @@ impl WsServer {
                     session_id,
                     user_id,
                     sess_tx,
-                } => self.session_up(session_id, user_id, sess_tx).await,
+                } => {
+                    self.session_up(session_id, user_id, sess_tx).await;
+                }
                 AppMessage::Message {
                     session_id,
                     message,
                 } => self.session_message(session_id, message).await,
-                AppMessage::Disconnect { session_id } => self.session_down(session_id).await,
+                AppMessage::Disconnect { session_id } => {
+                    self.session_down(session_id).await;
+                }
             }
         }
         Ok(())

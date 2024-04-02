@@ -42,6 +42,13 @@ impl MessageAttachment {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct UserOnlineStatus {
+    pub(crate) user_id: i32,
+    pub(crate) online: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum WsRequest {
@@ -169,6 +176,10 @@ pub enum WsResponse {
         message_id: i32,
         content: String,
     },
+
+    #[serde(rename = "USERS_ONLINE")]
+    #[serde(rename_all = "camelCase")]
+    UsersOnline { users: Vec<UserOnlineStatus> },
 }
 
 impl ToString for WsResponse {
