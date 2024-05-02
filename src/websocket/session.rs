@@ -64,7 +64,10 @@ impl Session {
         ws: &mut SplitSink<WebSocket, Message>,
         msg: String,
     ) {
-        ws.send(Message::Text(msg)).await.unwrap();
+        let Err(e) = ws.send(Message::Text(msg)).await else {
+            return;
+        };
+        log::error!("{e}");
     }
 
     pub async fn handle_websocket_message(
