@@ -45,7 +45,7 @@ impl From<&ConversationRecentMessageRepositoryModel> for DirectConversation {
             unread_count: value.unread_count,
             username: value.username.clone(),
             deleted: value.deleted,
-            sent_at: value.sent_at.clone(),
+            sent_at: value.sent_at,
         }
     }
 }
@@ -127,4 +127,10 @@ impl From<GroupConversationRepositoryModel> for GroupConversation {
             detail: detail.map(GroupConversationDetail::from),
         }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddContactForm {
+    user_id: i32
 }

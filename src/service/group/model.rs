@@ -84,10 +84,7 @@ where
         };
         let group_members = group_members
             .split(",")
-            .fold(Some(Vec::<i32>::new()), |acc, it| {
-                let Some(mut v) = acc else {
-                    return None;
-                };
+            .try_fold(Vec::<i32>::new(), |mut v, it| {
                 let Ok(num) = it.parse::<i32>() else {
                     return None;
                 };

@@ -17,11 +17,6 @@ use tokio::task::JoinHandle;
 
 use super::SessionID;
 
-enum WebSocketMessage {
-    Text(String),
-    Close,
-}
-
 #[derive(Clone)]
 pub struct SessionFactory {
     pub app_tx: AppTx,
@@ -177,7 +172,6 @@ impl Session {
         let handle = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                // log::info!("Checking token for session: {session_id}");
                 let valid = verify_token(token.clone());
                 if let Err(_) = valid {
                     ch_tx.send(true).unwrap();

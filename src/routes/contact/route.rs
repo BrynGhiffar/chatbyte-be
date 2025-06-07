@@ -77,3 +77,11 @@ async fn find_group_conversation_for_user(
         Err(e) => Failed(e),
     }
 }
+
+async fn add_contact(
+    AuthorizedUser { user_id }: AuthorizedUser,
+    State(state): State<AppState>
+) -> ServerResponse<String> {
+
+    Success("Succesfully added contact".to_string())
+}

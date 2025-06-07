@@ -79,4 +79,12 @@ impl ContactService {
 
         Ok(conversations.iter().map(GroupConversation::from).collect())
     }
+
+    pub async fn add_user_contact(
+        &self,
+        user_id: i32,
+        contact_id: i32
+    ) -> Result<bool, anyhow::Error> {
+        todo!()
+    }
 }
